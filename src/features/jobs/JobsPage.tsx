@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, ExternalLink } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section, dateLabel } from "@/components/ui";
-import { analyzeJobDescription } from "@/lib/domain/jobGap";
+import { analyzeJobDescription, assessRequirements } from "@/lib/domain/jobGap";
 import { localDay } from "@/lib/domain/insights";
 import { JobApplication, ApplicationStatus } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
@@ -12,7 +12,7 @@ const stages: ApplicationStatus[] = ["Saved", "Planning to Apply", "Applied", "R
 const later = (days: number) => { const date = new Date(); date.setDate(date.getDate() + days); return localDay(date); };
 
 export function JobsPage() {
-  const { data, add, update } = useStore();
+  const { data, add, update, hosted } = useStore();
   const [view, setView] = useState<"List" | "Kanban">("List");
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -23,8 +23,11 @@ export function JobsPage() {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [signals, setSignals] = useState<{ experience_signals: string[]; responsibilities: string[] } | null>(null);
   const job = data.job_applications.find((item) => item.id === selected) ?? data.job_applications[0];
-  const gap = job ? analyzeJobDescription(job.job_description, data) : [];
+  const extracted = data.job_skill_requirements.filter((item) => item.application_id === job?.id);
+  const gap = job ? extracted.length ? assessRequirements(extracted.map((item) => item.skill_name), data) : analyzeJobDescription(job.job_description, data) : [];
   const planName = job ? `Close gaps for ${job.company} · ${job.role}` : "";
   const planExists = data.goals.some((goal) => goal.title === planName);
   const needsPlan = gap.filter((item) => item.assessment === "Gap" || item.assessment === "Unknown").slice(0, 6);
@@ -39,6 +42,23 @@ export function JobsPage() {
   const moveStage = async (item: JobApplication, status: ApplicationStatus) => {
     try { await update("job_applications", item.id, { status, date_applied: status === "Applied" && !item.date_applied ? localDay() : item.date_applied }); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not move application."); }
+  };
+  const analyzeWithAI = async () => {
+    if (!job) return;
+    setAnalyzing(true); setError("");
+    try {
+      const response = await fetch("/api/ai/analyze-jd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: job.job_description }) });
+      const payload = await response.json() as { error?: string; required_skills?: string[]; preferred_skills?: string[]; tools?: string[]; cloud_requirements?: string[]; experience_signals?: string[]; responsibilities?: string[] };
+      if (!response.ok) throw new Error(payload.error ?? "Could not analyze the job description.");
+      const groups = [["required", payload.required_skills ?? []], ["preferred", payload.preferred_skills ?? []], ["tool", payload.tools ?? []], ["cloud", payload.cloud_requirements ?? []]] as const;
+      for (const [requirement_type, names] of groups) for (const skill_name of names) {
+        if (extracted.some((item) => item.skill_name.toLowerCase() === skill_name.toLowerCase())) continue;
+        const skill = data.skills.find((item) => item.name.toLowerCase() === skill_name.toLowerCase());
+        await add("job_skill_requirements", { application_id: job.id, skill_name, requirement_type, skill_id: skill?.id ?? null, assessment: skill ? "Developing" : "Gap" });
+      }
+      setSignals({ experience_signals: payload.experience_signals ?? [], responsibilities: payload.responsibilities ?? [] });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "AI analysis failed."); }
+    finally { setAnalyzing(false); }
   };
   const createPlan = async () => {
     if (!job || !needsPlan.length || planExists) return;
@@ -61,7 +81,7 @@ export function JobsPage() {
     {job && <div id="job-detail" style={{ marginTop: 17 }} className="grid-main"><div className="stack"><Section title={`${job.company} · ${job.role}`} action={<Badge tone="blue">{job.status}</Badge>}><div className="section-body"><div className="row-between small muted"><span>{job.location || "Location not entered"} · {job.work_type || "Work type open"}</span><span>Found {dateLabel(job.date_found)}</span></div><div className="row" style={{ marginTop: 12 }}>{job.job_url && <a href={job.job_url} target="_blank" rel="noopener noreferrer" className="link small row">Job posting <ExternalLink size={12} /></a>}{job.resume_version && <span className="small muted">Resume: {job.resume_version}</span>}</div><div className="form-grid" style={{ marginTop: 16 }}><Field label="Follow-up" name="job-followup"><input id="job-followup" type="date" className="input" value={job.followup_date ?? ""} onChange={(event) => void update("job_applications", job.id, { followup_date: event.target.value || null })} /></Field><Field label="Priority" name="job-priority"><select id="job-priority" className="select" value={job.priority} onChange={(event) => void update("job_applications", job.id, { priority: event.target.value as JobApplication["priority"] })}><option>low</option><option>medium</option><option>high</option></select></Field></div></div></Section>
       <Section title="Job description"><div className="section-body"><textarea className="textarea" aria-label="Job description" key={job.id} style={{ minHeight: 180 }} defaultValue={job.job_description} placeholder="Paste the job description here" onBlur={(event) => { if (event.target.value !== job.job_description) void update("job_applications", job.id, { job_description: event.target.value }); }} /><p className="micro muted" style={{ marginBottom: 0 }}>Updates save when you leave the field. Skill gap results use this description.</p></div></Section>
       <Section title="Notes"><div className="section-body"><textarea className="textarea" aria-label="Application notes" key={`${job.id}-notes`} defaultValue={job.notes} onBlur={(event) => { if (event.target.value !== job.notes) void update("job_applications", job.id, { notes: event.target.value }); }} /></div></Section></div>
-      <div className="stack"><Section title="Skill gap" meta="Evidence-based assessment" action={needsPlan.length > 0 && !planExists ? <Button onClick={() => setPlanPreview(true)}>Create gap plan</Button> : undefined}><div>{gap.length ? gap.map((item) => <div className="list-row" key={item.name}><div className="row-between small"><strong>{item.name}</strong><Badge tone={item.assessment === "Strong" ? "green" : item.assessment === "Developing" ? "blue" : item.assessment === "Gap" ? "red" : "amber"}>{item.assessment}</Badge></div><div className="micro muted" style={{ marginTop: 5 }}>{item.evidence.length ? `Proof: ${item.evidence.join(" · ")}` : "No linked evidence yet"}</div></div>) : <Empty title="No recognizable requirements" detail="Paste a job description to compare its skills with your records." />}</div></Section><Section title="Related contacts"><div>{data.contacts.filter((contact) => contact.company.toLowerCase() === job.company.toLowerCase()).map((contact) => <div className="list-row small" key={contact.id}>{contact.name} · {contact.role}</div>)}{!data.contacts.some((contact) => contact.company.toLowerCase() === job.company.toLowerCase()) && <Empty title="No related contact" detail="Add a recruiter or employee in Networking." />}</div></Section></div></div>}
+      <div className="stack"><Section title="Skill gap" meta={extracted.length ? "AI extracted, evidence assessed" : "Local recognition, evidence assessed"} action={<div className="row">{hosted && <Button disabled={analyzing || job.job_description.length < 80} onClick={() => void analyzeWithAI()}>{analyzing ? "Analyzing…" : "Analyze with AI"}</Button>}{needsPlan.length > 0 && !planExists && <Button onClick={() => setPlanPreview(true)}>Create gap plan</Button>}</div>}><div>{gap.length ? gap.map((item) => <div className="list-row" key={item.name}><div className="row-between small"><strong>{item.name}</strong><Badge tone={item.assessment === "Strong" ? "green" : item.assessment === "Developing" ? "blue" : item.assessment === "Gap" ? "red" : "amber"}>{item.assessment}</Badge></div><div className="micro muted" style={{ marginTop: 5 }}>{item.evidence.length ? `Proof: ${item.evidence.join(" · ")}` : "No linked evidence yet"}</div></div>) : <Empty title="No recognizable requirements" detail="Paste a job description to compare its skills with your records." />}{signals && <div className="section-body"><strong className="small">Experience signals</strong><p className="small muted">{signals.experience_signals.join(" · ") || "None stated"}</p><strong className="small">Responsibilities</strong><p className="small muted">{signals.responsibilities.join(" · ") || "None stated"}</p></div>}</div></Section><Section title="Related contacts"><div>{data.contacts.filter((contact) => contact.company.toLowerCase() === job.company.toLowerCase()).map((contact) => <div className="list-row small" key={contact.id}>{contact.name} · {contact.role}</div>)}{!data.contacts.some((contact) => contact.company.toLowerCase() === job.company.toLowerCase()) && <Empty title="No related contact" detail="Add a recruiter or employee in Networking." />}</div></Section></div></div>}
     {adding && <Dialog title="Add job application" onClose={() => setAdding(false)}><div className="form-grid"><Field label="Company" name="job-company"><input id="job-company" className="input" autoFocus value={company} onChange={(event) => setCompany(event.target.value)} /></Field><Field label="Role" name="job-role"><input id="job-role" className="input" value={role} onChange={(event) => setRole(event.target.value)} /></Field><Field label="Location" name="job-location"><input id="job-location" className="input" value={location} onChange={(event) => setLocation(event.target.value)} /></Field><Field label="Job URL" name="job-url"><input id="job-url" type="url" className="input" value={url} onChange={(event) => setUrl(event.target.value)} /></Field><Field label="Job description" name="job-description" full><textarea id="job-description" className="textarea" value={description} onChange={(event) => setDescription(event.target.value)} /></Field></div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setAdding(false)}>Cancel</Button><Button variant="primary" onClick={() => void save()}>Save application</Button></div></Dialog>}
     {planPreview && job && <Dialog title="Review gap plan" onClose={() => setPlanPreview(false)}><p className="small muted">This will create one goal, one milestone, and {needsPlan.length * 2} tasks. Review the suggested work before saving.</p><div>{needsPlan.map((item) => <div className="list-row small" key={item.name}><strong>{item.name}</strong><div className="muted">Learn the requirement · Practice interview questions</div></div>)}</div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setPlanPreview(false)}>Cancel</Button><Button variant="primary" onClick={() => void createPlan()}>Create plan</Button></div></Dialog>}
   </>;

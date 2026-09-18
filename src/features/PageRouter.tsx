@@ -12,6 +12,9 @@ import { DailyLogPage } from "./daily-log/DailyLogPage";
 import { NetworkingPage } from "./networking/NetworkingPage";
 import { InterviewsPage } from "./interviews/InterviewsPage";
 import { JobsPage } from "./jobs/JobsPage";
+import { MorePage } from "./more/MorePage";
+import { SettingsPage } from "./settings/SettingsPage";
+import { CopilotPage } from "./copilot/CopilotPage";
 
 export function PageRouter({ section, openCapture, openTask }: { section: string; openCapture: () => void; openTask: () => void }) {
   switch (section) {
@@ -26,6 +29,9 @@ export function PageRouter({ section, openCapture, openTask }: { section: string
     case "networking": return <NetworkingPage />;
     case "interviews": return <InterviewsPage />;
     case "jobs": return <JobsPage />;
+    case "more": return <MorePage />;
+    case "settings": return <SettingsPage />;
+    case "copilot": return <CopilotPage />;
     default: return <><PageHeading title={section.replaceAll("-", " ")} subtitle="This workspace is being connected to your career records." /><Section title="Coming together"><div className="empty">More tools will appear here.</div></Section></>;
   }
 }

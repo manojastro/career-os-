@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Field } from "@/components/ui";
 import { browserSupabase, hostedMode } from "@/lib/supabase";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +20,7 @@ export default function LoginPage() {
     event.preventDefault(); setBusy(true); setMessage("");
     const supabase = browserSupabase();
     if (!supabase) return;
-    const result = mode === "login" ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password, options: { data: { display_name: name } } });
+    const result = mode === "login" ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password, options: { data: { display_name: name }, emailRedirectTo: window.location.origin } });
     if (result.error) { setMessage(result.error.message); setBusy(false); return; }
     if (!result.data.session) { setMessage("Check your email to confirm your account, then sign in."); setBusy(false); return; }
     const { data: profile } = await supabase.from("profiles").select("onboarded_at").eq("id", result.data.session.user.id).maybeSingle();
@@ -32,6 +33,10 @@ export default function LoginPage() {
     {mode === "signup" && <Field label="Name" name="auth-name"><input id="auth-name" className="input" autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} /></Field>}
     <Field label="Email" name="auth-email"><input id="auth-email" className="input" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
     <Field label="Password" name="auth-password"><input id="auth-password" className="input" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
-    {message && <p className="error" role="alert">{message}</p>}<Button variant="primary" disabled={busy} type="submit" style={{ width: "100%" }}>{busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}</Button>
+    {(message || searchParams.get("confirmation") === "failed") && <p className="error" role="alert">{message || "The confirmation link is invalid or expired. Please sign in or request a new link."}</p>}<Button variant="primary" disabled={busy} type="submit" style={{ width: "100%" }}>{busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}</Button>
   </form><div className="small muted" style={{ marginTop: 20, textAlign: "center" }}>{mode === "login" ? "New to Career OS?" : "Already have an account?"} <button className="link" style={{ border: 0, background: "none" }} onClick={() => { setMode(mode === "login" ? "signup" : "login"); setMessage(""); }}>{mode === "login" ? "Create an account" : "Sign in"}</button></div></div></main>;
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<main className="empty">Loading sign in…</main>}><LoginContent /></Suspense>;
 }

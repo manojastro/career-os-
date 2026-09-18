@@ -160,6 +160,14 @@ export interface JobApplication extends RowBase {
   priority: Priority;
 }
 
+export interface JobSkillRequirement extends RowBase {
+  application_id: string;
+  skill_name: string;
+  requirement_type: string;
+  skill_id: string | null;
+  assessment: string;
+}
+
 export interface FocusSession extends RowBase {
   task_id: string;
   started_at: string;
@@ -239,6 +247,7 @@ export interface EntityMap {
   interview_practice: InterviewPractice;
   interview_stories: InterviewStory;
   job_applications: JobApplication;
+  job_skill_requirements: JobSkillRequirement;
   focus_sessions: FocusSession;
   notes: Note;
   resources: Resource;
@@ -255,7 +264,7 @@ export type AppData = { [K in EntityName]: EntityMap[K][] };
 export const ENTITY_NAMES: EntityName[] = [
   "tasks", "goals", "milestones", "skills", "skill_topics", "projects", "contacts",
   "network_interactions", "interview_questions", "interview_practice", "interview_stories", "job_applications",
-  "focus_sessions", "notes", "resources", "evidence", "inbox_items", "activity_log",
+  "job_skill_requirements", "focus_sessions", "notes", "resources", "evidence", "inbox_items", "activity_log",
   "daily_logs", "planner_blocks",
 ];
 

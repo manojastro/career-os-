@@ -5,21 +5,39 @@ import { classifyCapture, goalProgress, searchData, weeklyTime, skillReadiness }
 describe("career insights", () => {
   it("derives goal progress from milestones and linked tasks", () => {
     const data = demoData();
-    expect(goalProgress(data, "goal-rag")).toBe(0);
+    const baseline = goalProgress(data, "goal-rag");
+    expect(baseline).toBeGreaterThan(0);
     data.tasks[0].status = "completed";
-    expect(goalProgress(data, "goal-rag")).toBeGreaterThan(0);
+    expect(goalProgress(data, "goal-rag")).toBeGreaterThan(baseline);
     expect(goalProgress(data, "goal-rag")).toBeLessThan(100);
     data.milestones.filter((m) => m.goal_id === "goal-rag").forEach((m) => { m.status = "completed"; });
     expect(goalProgress(data, "goal-rag")).toBeGreaterThanOrEqual(50);
+  });
+
+  it("rolls child goal progress into a parent career goal", () => {
+    const data = demoData();
+    const baseline = goalProgress(data, "goal-career");
+    data.tasks.filter((task) => task.goal_id === "goal-rag").forEach((task) => { task.status = "completed"; });
+    expect(goalProgress(data, "goal-career")).toBeGreaterThan(baseline);
   });
 
   it("does not count future or unscheduled work in this week's plan", () => {
     const data = demoData();
     const current = weeklyTime(data, new Date());
     expect(current.planned_minutes).toBeGreaterThan(0);
-    expect(current.actual_minutes).toBe(0);
+    expect(current.actual_minutes).toBe(55);
     data.tasks[0].actual_minutes = 30;
-    expect(weeklyTime(data, new Date()).actual_minutes).toBe(30);
+    expect(weeklyTime(data, new Date()).actual_minutes).toBe(85);
+  });
+
+  it("counts a focus session even when its task was never scheduled", () => {
+    const data = demoData();
+    data.tasks[0].scheduled_date = null;
+    data.tasks[0].actual_minutes = 25;
+    data.focus_sessions.push({ id: "extra-focus", user_id: "demo", created_at: new Date().toISOString(), task_id: data.tasks[0].id, started_at: new Date().toISOString(), ended_at: new Date().toISOString(), duration_minutes: 25, note: "" });
+    const week = weeklyTime(data, new Date());
+    expect(week.actual_minutes).toBe(80);
+    expect(week.by_type.Build.actual).toBe(80);
   });
 
   it("shows readiness dimensions without a false exact percentage", () => {

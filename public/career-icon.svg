@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Career OS">
+  <rect width="512" height="512" rx="84" fill="#182531"/>
+  <path d="M358 142H219c-42 0-68 27-68 68v93c0 41 26 67 68 67h139v-58H221c-9 0-13-5-13-14v-83c0-10 4-15 13-15h137z" fill="#f3f7fb"/>
+  <rect x="358" y="142" width="16" height="58" fill="#80afe8"/>
+</svg>

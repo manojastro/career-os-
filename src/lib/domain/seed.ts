@@ -1,9 +1,10 @@
 import { AppData, emptyData, RowBase } from "./types";
+import { localDay } from "./insights";
 
 const isoDay = (offset = 0) => {
   const date = new Date();
   date.setDate(date.getDate() + offset);
-  return date.toISOString().slice(0, 10);
+  return localDay(date);
 };
 
 const now = () => new Date().toISOString();
@@ -17,6 +18,7 @@ export function demoData(): AppData {
     { ...row("goal-portfolio"), title: "Build portfolio project", description: "Create a public proof of end-to-end engineering.", goal_type: "quarter", parent_goal_id: "goal-career", target_date: isoDay(90), status: "active", reason: "Employers need concrete evidence.", success_criteria: "Working demo, repository, and concise case study." },
   ];
   data.milestones = [
+    { ...row("mile-ingestion"), goal_id: "goal-rag", title: "Secure ingestion baseline", due_date: isoDay(-3), status: "completed", success_criteria: "Indexed documents with access metadata." },
     { ...row("mile-search"), goal_id: "goal-rag", title: "Hybrid retrieval working", due_date: isoDay(14), status: "in_progress", success_criteria: "Lexical and semantic results merged and measured." },
     { ...row("mile-eval"), goal_id: "goal-rag", title: "Evaluation suite and baseline", due_date: isoDay(35), status: "pending", success_criteria: "Repeatable answer and retrieval quality tests." },
     { ...row("mile-demo"), goal_id: "goal-portfolio", title: "Public demo and case study", due_date: isoDay(58), status: "pending", success_criteria: "Deployment URL, screenshots, and trade-off notes." },
@@ -57,6 +59,8 @@ export function demoData(): AppData {
     goal_id: goal_id ? String(goal_id) : null, milestone_id: milestone_id ? String(milestone_id) : null, application_id: null, contact_id: null,
     completed_at: null, sort_order: Number(sort_order), tags: [], recurrence: null, evidence_required: false,
   }));
+  data.tasks.push({ ...row("task-ingestion"), title: "Validate permission-aware ingestion", description: "Checked ACL metadata in indexed documents.", type: "Build", status: "completed", priority: "high", estimated_minutes: 60, actual_minutes: 55, due_date: isoDay(), scheduled_date: isoDay(), scheduled_start: "06:00", scheduled_end: "07:00", skill_id: "skill-rag", project_id: "project-rag", goal_id: "goal-rag", milestone_id: "mile-ingestion", application_id: null, contact_id: null, completed_at: now(), sort_order: 0, tags: ["evidence"], recurrence: null, evidence_required: true });
+  data.focus_sessions = [{ ...row("focus-ingestion"), task_id: "task-ingestion", started_at: new Date(Date.now() - 55 * 60000).toISOString(), ended_at: now(), duration_minutes: 55, note: "Confirmed the access filters." }];
   data.contacts = [
     { ...row("contact-priya"), name: "Priya Shah", company: "Northstar AI", role: "Engineering Manager", linkedin_url: "", email: "", location: "Bengaluru", relationship_stage: "Warm", topics: ["GenAI", "Platform"], notes: "Discussed production evaluation practices.", date_connected: isoDay(-40), last_interaction: isoDay(-12), next_followup: isoDay(-1) },
     { ...row("contact-rahul"), name: "Rahul Mehta", company: "Vector Labs", role: "Staff Engineer", linkedin_url: "", email: "", location: "Remote", relationship_stage: "Connected", topics: ["RAG", "Search"], notes: "Shared a retrieval benchmarking article.", date_connected: isoDay(-8), last_interaction: isoDay(-8), next_followup: isoDay(3) },
@@ -66,6 +70,7 @@ export function demoData(): AppData {
     { ...row("question-cache"), question: "Design a cache for a high-traffic API.", answer: "Discuss invalidation, consistency, and observability.", category: "System Design", difficulty: "Medium", status: "Practiced", confidence: 3, skill_id: null, last_practiced: isoDay(-3), practice_count: 3 },
     { ...row("question-project"), question: "Tell me about a difficult architecture trade-off.", answer: "Use the RAG permission boundary as a STAR story.", category: "Behavioral", difficulty: "Medium", status: "New", confidence: 1, skill_id: null, last_practiced: null, practice_count: 0 },
   ];
+  data.interview_practice = [{ ...row("practice-cache"), question_id: "question-cache", practiced_at: new Date(Date.now() - 86400000).toISOString(), confidence: 3, notes: "Clarify cache invalidation trade-offs." }];
   data.interview_stories = [{ ...row("story-permission"), title: "Choosing an ACL-aware retrieval design", situation: "A retrieval assistant needed to serve sensitive internal documents.", task: "Prevent unauthorized context from reaching generation.", action: "Enforced access filters in retrieval and added tests for cross-tenant leakage.", result: "The design produced attributable answers without crossing document permissions.", lessons: "Authorization belongs in retrieval, not just the UI.", project_id: "project-rag", tags: ["architecture", "security"] }];
   data.job_applications = [
     { ...row("job-northstar"), company: "Northstar AI", role: "GenAI Engineer", location: "Bengaluru", work_type: "Hybrid", job_url: "", job_description: "Build reliable retrieval applications with Python, vector search, evaluation, and cloud deployment.", salary_range: "", date_found: isoDay(-6), date_applied: isoDay(-3), status: "Applied", recruiter: "", recruiter_linkedin: "", resume_version: "GenAI v2", notes: "Tailored portfolio section.", followup_date: isoDay(4), priority: "high" },
@@ -78,6 +83,9 @@ export function demoData(): AppData {
   ];
   data.resources = [{ ...row("resource-eval"), title: "RAG evaluation checklist", url: "https://example.com/rag-evaluation", source_type: "Article", skill_id: "skill-rag", project_id: "project-rag", status: "To Review", priority: "medium", notes: "Compare metrics with our baseline." }];
   data.evidence = [{ ...row("evidence-architecture"), title: "Permission boundary design", kind: "architecture", url: "", description: "Documented ACL-aware retrieval design and trade-offs.", skill_id: "skill-rag", project_id: "project-rag", goal_id: "goal-rag" }];
-  data.activity_log = [{ ...row("activity-seed"), entity_type: "project", entity_id: "project-rag", action: "updated", summary: "Started permission-aware retrieval architecture", occurred_at: new Date(Date.now() - 86400000).toISOString(), metadata: {} }];
+  data.activity_log = [
+    { ...row("activity-ingestion"), entity_type: "tasks", entity_id: "task-ingestion", action: "completed", summary: "Completed permission-aware ingestion validation", occurred_at: now(), metadata: {} },
+    { ...row("activity-seed"), entity_type: "project", entity_id: "project-rag", action: "updated", summary: "Started permission-aware retrieval architecture", occurred_at: new Date(Date.now() - 86400000).toISOString(), metadata: {} },
+  ];
   return data;
 }

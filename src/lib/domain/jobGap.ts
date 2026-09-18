@@ -10,7 +10,11 @@ const knownTerms = ["Python", "FastAPI", "RAG", "LangGraph", "Docker", "Kubernet
 
 export function analyzeJobDescription(description: string, data: AppData): JobGap[] {
   const terms = [...new Set([...knownTerms, ...data.skills.map((skill) => skill.name)])];
-  return terms.filter((term) => description.toLowerCase().includes(term.toLowerCase())).map((name) => {
+  return assessRequirements(terms.filter((term) => description.toLowerCase().includes(term.toLowerCase())), data);
+}
+
+export function assessRequirements(names: string[], data: AppData): JobGap[] {
+  return [...new Set(names.map((item) => item.trim()).filter(Boolean))].map((name) => {
     const skill = data.skills.find((item) => item.name.toLowerCase() === name.toLowerCase());
     if (!skill) return { name, assessment: "Gap" as const, evidence: [] };
     const evidence = [

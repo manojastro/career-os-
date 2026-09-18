@@ -12,11 +12,11 @@ export function DailyLogPage() {
   const [message, setMessage] = useState("");
   const log = data.daily_logs.find((item) => item.log_date === date);
   const journal = draft ?? log?.journal ?? "";
-  const tasks = data.tasks.filter((task) => task.completed_at?.slice(0, 10) === date);
-  const sessions = data.focus_sessions.filter((session) => session.started_at.slice(0, 10) === date);
-  const practice = data.interview_practice.filter((item) => item.practiced_at.slice(0, 10) === date);
-  const interactions = data.network_interactions.filter((item) => item.occurred_at.slice(0, 10) === date);
-  const activity = data.activity_log.filter((item) => item.occurred_at.slice(0, 10) === date).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+  const tasks = data.tasks.filter((task) => task.completed_at && localDay(new Date(task.completed_at)) === date);
+  const sessions = data.focus_sessions.filter((session) => localDay(new Date(session.started_at)) === date);
+  const practice = data.interview_practice.filter((item) => localDay(new Date(item.practiced_at)) === date);
+  const interactions = data.network_interactions.filter((item) => localDay(new Date(item.occurred_at)) === date);
+  const activity = data.activity_log.filter((item) => localDay(new Date(item.occurred_at)) === date).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
   const learned = sessions.filter((session) => data.tasks.find((task) => task.id === session.task_id)?.type === "Learn");
   const built = sessions.filter((session) => data.tasks.find((task) => task.id === session.task_id)?.type === "Build");
 

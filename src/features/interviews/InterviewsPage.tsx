@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section, dateLabel } from "@/components/ui";
 import { InterviewQuestion } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
+import { localDay } from "@/lib/domain/insights";
 
 const categories: InterviewQuestion["category"][] = ["Technical", "Coding", "System Design", "Project", "Behavioral", "Architecture", "Debugging", "Cloud", "AI/LLM"];
 
@@ -33,7 +34,7 @@ export function InterviewsPage() {
     if (!item) return;
     try {
       await add("interview_practice", { question_id: item.id, practiced_at: new Date().toISOString(), confidence, notes });
-      await update("interview_questions", item.id, { confidence, practice_count: item.practice_count + 1, last_practiced: new Date().toISOString().slice(0, 10), status: confidence >= 4 ? "Strong" : "Practiced" });
+      await update("interview_questions", item.id, { confidence, practice_count: item.practice_count + 1, last_practiced: localDay(), status: confidence >= 4 ? "Strong" : "Practiced" });
       setPracticing(false); setNotes(""); setError("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not record practice."); }
   };

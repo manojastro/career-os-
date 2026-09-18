@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Progress, Section, dateLabel } from "@/components/ui";
-import { projectProgress } from "@/lib/domain/insights";
+import { localDay, projectProgress } from "@/lib/domain/insights";
 import { Project } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
 
@@ -27,7 +27,7 @@ export function ProjectsPage() {
   const save = async () => {
     if (name.trim().length < 2) { setError("Enter a project name."); return; }
     try {
-      const created = await add("projects", { name: name.trim(), description, problem, business_value: value, architecture: "", technologies: tech.split(",").map((item) => item.trim()).filter(Boolean), github_url: "", deployment_url: "", status: "Planning", start_date: new Date().toISOString().slice(0, 10), target_date: target || null });
+      const created = await add("projects", { name: name.trim(), description, problem, business_value: value, architecture: "", technologies: tech.split(",").map((item) => item.trim()).filter(Boolean), github_url: "", deployment_url: "", status: "Planning", start_date: localDay(), target_date: target || null });
       setSelected(created.id); setAdding(false); setName(""); setDescription(""); setProblem(""); setValue(""); setTech(""); setTarget(""); setError("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create project."); }
   };

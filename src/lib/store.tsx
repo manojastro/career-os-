@@ -6,7 +6,7 @@ import { AppData, EntityMap, EntityName, ENTITY_NAMES, emptyData, Activity } fro
 import { demoData } from "./domain/seed";
 import { browserSupabase, hostedMode } from "./supabase";
 
-const DEMO_KEY = "career-os-demo-v2";
+const DEMO_KEY = "career-os-demo-v4";
 
 interface Store {
   data: AppData;
@@ -34,14 +34,22 @@ function initialDemo(): AppData {
 }
 
 function describeChange(table: EntityName, before: Record<string, unknown> | undefined, after: Record<string, unknown>): string | null {
+  if (table === "tasks" && !before) return `Created task: ${after.title}`;
   if (table === "tasks" && before?.status !== "completed" && after.status === "completed") return `Completed ${after.title}`;
+  if (table === "goals" && !before) return `Created goal: ${after.title}`;
+  if (table === "goals" && before?.status !== after.status) return `Goal ${after.title}: ${after.status}`;
   if (table === "milestones" && before?.status !== "completed" && after.status === "completed") return `Reached milestone: ${after.title}`;
+  if (table === "job_applications" && !before) return `Saved application: ${after.company} · ${after.role}`;
   if (table === "job_applications" && before?.status !== after.status) return `${after.company}: moved to ${after.status}`;
+  if (table === "skills" && !before) return `Added skill: ${after.name}`;
   if (table === "skills" && before?.status !== after.status) return `${after.name}: ${after.status}`;
+  if (table === "contacts" && !before) return `Added contact: ${after.name}`;
   if (table === "interview_practice") return "Practiced an interview question";
   if (table === "network_interactions") return "Recorded a networking interaction";
   if (table === "focus_sessions") return "Finished a focus session";
+  if (table === "projects" && !before) return `Created project: ${after.name}`;
   if (table === "projects" && before?.status !== after.status) return `${after.name}: ${after.status}`;
+  if (table === "evidence" && !before) return `Added evidence: ${after.title}`;
   return null;
 }
 
@@ -84,7 +92,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     queueMicrotask(() => { void refresh(); });
     if (!supabase) return;
-    const { data: listener } = supabase.auth.onAuthStateChange(() => { void refresh(); });
+    const { data: listener } = supabase.auth.onAuthStateChange(() => { setTimeout(() => { void refresh(); }, 0); });
     return () => listener.subscription.unsubscribe();
   }, [refresh, supabase]);
 
@@ -127,7 +135,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const { error: writeError } = await supabase.from(table).update({ ...values, updated_at: next.updated_at }).eq("id", id);
       if (writeError) throw writeError;
     }
-    setData((current) => ({ ...current, [table]: (current[table] as EntityMap[K][]).map((item) => item.id === id ? next : item) } as AppData));
+    setData((current) => ({ ...current, [table]: (current[table] as EntityMap[K][]).map((item) => item.id === id ? { ...item, ...values, updated_at: next.updated_at } : item) } as AppData));
     const summary = describeChange(table, existing as unknown as Record<string, unknown>, next as unknown as Record<string, unknown>);
     if (summary) await writeActivity(table, id, summary);
   }, [data, supabase, user, writeActivity]);
