@@ -6,7 +6,7 @@ import { AppData, EntityMap, EntityName, ENTITY_NAMES, emptyData, Activity } fro
 import { demoData } from "./domain/seed";
 import { browserSupabase, hostedMode } from "./supabase";
 
-const DEMO_KEY = "career-os-demo-v1";
+const DEMO_KEY = "career-os-demo-v2";
 
 interface Store {
   data: AppData;

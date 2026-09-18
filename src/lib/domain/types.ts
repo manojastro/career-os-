@@ -130,6 +130,17 @@ export interface InterviewPractice extends RowBase {
   notes: string;
 }
 
+export interface InterviewStory extends RowBase {
+  title: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  lessons: string;
+  project_id: string | null;
+  tags: string[];
+}
+
 export interface JobApplication extends RowBase {
   company: string;
   role: string;
@@ -226,6 +237,7 @@ export interface EntityMap {
   network_interactions: NetworkInteraction;
   interview_questions: InterviewQuestion;
   interview_practice: InterviewPractice;
+  interview_stories: InterviewStory;
   job_applications: JobApplication;
   focus_sessions: FocusSession;
   notes: Note;
@@ -242,7 +254,7 @@ export type AppData = { [K in EntityName]: EntityMap[K][] };
 
 export const ENTITY_NAMES: EntityName[] = [
   "tasks", "goals", "milestones", "skills", "skill_topics", "projects", "contacts",
-  "network_interactions", "interview_questions", "interview_practice", "job_applications",
+  "network_interactions", "interview_questions", "interview_practice", "interview_stories", "job_applications",
   "focus_sessions", "notes", "resources", "evidence", "inbox_items", "activity_log",
   "daily_logs", "planner_blocks",
 ];
