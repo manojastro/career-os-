@@ -6,9 +6,11 @@ describe("career insights", () => {
   it("includes standalone learning time once and excludes timer mirrors", () => {
     const data = demoData();
     const baseline = weeklyTime(data).actual_minutes;
+    const baselineLearning = weeklyTime(data).by_type.Learn?.actual ?? 0;
     const occurred_at = new Date().toISOString();
     data.learning_sessions.push({ id: "standalone", user_id: "demo", created_at: occurred_at, task_id: null, skill_id: null, minutes: 12, learned: "notes", occurred_at }, { id: "mirror", user_id: "demo", created_at: occurred_at, task_id: null, skill_id: null, minutes: 55, learned: "timer", occurred_at, focus_session_id: "focus" });
     expect(weeklyTime(data).actual_minutes).toBe(baseline + 12);
+    expect(weeklyTime(data).by_type.Learn.actual).toBe(baselineLearning + 12);
   });
   it("derives goal progress from milestones and linked tasks", () => {
     const data = demoData();
