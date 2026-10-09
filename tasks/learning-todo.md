@@ -7,7 +7,7 @@
 - [x] Implement and review secured learning routes and transactional accounting.
 - [x] Extend existing Skills, Tasks, Today, Dashboard, Daily Log and Settings.
 - [x] Add tested Hermes API adapter and supported paused scheduler setup.
-- [ ] Preserve deployed source/migrations in GitHub repository.
-- [ ] Run application lint, types, unit/E2E and build verification.
-- [ ] Deploy and verify live application.
+- [x] Preserve deployed source/migrations in GitHub repository.
+- [x] Run application lint, types, unit/E2E and build verification.
+- [x] Deploy and verify live application publication/navigation/auth gates (signed-in learning roundtrip still pending).
 - [ ] Verify real Hermes → Telegram → reply → persisted progress roundtrip.

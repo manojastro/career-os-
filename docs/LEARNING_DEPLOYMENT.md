@@ -23,18 +23,18 @@ Next.js changes: `src/lib/learning`, `src/app/api/learning`, `src/app/api/agent/
 ## Verification
 
 - Next.js lint, typecheck (also performed during build), production build and 60 unit/database/adapter tests passed after updating Next.js/eslint-config-next to16.3.8 and sharp/source-map-js to available security patches.
-- Browser regressions: seven flows passed before the patch update; a final repeat is recorded below when completed.
+- Browser regressions: seven flows passed before the patch update. After the patch, six passed and one hit Chromium ERR_NETWORK_IO_SUSPENDED during navigation; the isolated repeat of that flow passed (13.5s total). All seven flows are therefore verified with the final dependency versions.
 - Lovable build agent reported 55 learning tests, typecheck/build passing and ten real-database safeguards passing; disposable test data was removed.
 - Live login, demo dashboard/settings navigation and privacy gate checked in the browser.
 - Live authenticated worker request returned401 with the newly generated local bearer until the server fingerprint is changed. Invalid credentials do not expose owner data.
-- Telegram getMe returned200 for `manoj_career_compass_bot`. No outbound message or reply roundtrip has yet been claimed as verified.
+- Telegram getMe returned200 for `manoj_career_compass_bot`. One recent private /start was received and its sender/chat saved privately in Hermes configuration. No outbound message or learning reply roundtrip has yet been claimed as verified.
 
-Production dependency audit for the Next.js tree is recorded separately from remaining development-only lint dependency advisories; no force downgrade of Next/eslint was performed.
+Production dependency audit for the Next.js tree reports zero vulnerabilities. Five development-only lint dependency advisories remain (braces and its dependents; current published braces has no fix). No force downgrade of Next/eslint was performed. Advisory references: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm and https://github.com/advisories/GHSA-vcvr-r3jv-pc5j .
 
 ## Secure activation pending
 
 1. In Lovable Settings → Secrets update the existing `AGENT_TOKEN_SHA256` to `053afaf63b9f029c4ce10f48e9cdcda527b9fdf08acfc807eabf0e58e288362d`. The connector cannot overwrite an existing secret. This digest is public-safe; its matching raw token exists only in the private Hermes `.env`.
-2. The owner sends `/start` privately to https://t.me/manoj_career_compass_bot. Verify that received sender/chat, configure private allowed-user/home-channel values, and save only the sender SHA256 as server `TELEGRAM_OWNER_ID_SHA256`. Do not infer the owner from a display name. Rotate the bot token pasted into chat and save its replacement securely.
+2. The private /start destination is now configured locally. Save its sender SHA256 as server `TELEGRAM_OWNER_ID_SHA256`: `c7bfdb08435a93cdd4b3fd611503b2fe8a43b2c0763578b2a74f066f4b73ba6a`. The connector has been asked to create this field if absent; an existing field requires secure owner UI update. Rotate the bot token pasted into chat and save its replacement securely.
 3. Sign into Career OS and confirm starting levels in Skills. Do not mark topics learned on the owner's behalf.
 4. Verify authenticated context, create a real plan, reserve/send/record a real Telegram message, process its reply, re-read progress and retry the same reply to prove no duplicate minutes.
 5. Start Hermes and configure a supported Windows logon/reboot supervisor; verify restart behavior. Resume paused job `46a628bb9ae9` only after the roundtrip passes.
