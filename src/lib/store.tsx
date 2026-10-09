@@ -14,6 +14,7 @@ interface Store {
   error: string | null;
   user: User | null;
   hosted: boolean;
+  learningReady: boolean;
   add: <K extends EntityName>(table: K, values: Omit<EntityMap[K], "id" | "user_id" | "created_at">) => Promise<EntityMap[K]>;
   update: <K extends EntityName>(table: K, id: string, values: Partial<EntityMap[K]>) => Promise<void>;
   remove: <K extends EntityName>(table: K, id: string) => Promise<void>;
@@ -27,7 +28,7 @@ const StoreContext = createContext<Store | null>(null);
 function initialDemo(): AppData {
   try {
     const saved = localStorage.getItem(DEMO_KEY);
-    return saved ? JSON.parse(saved) as AppData : demoData();
+    return saved ? { ...emptyData(), ...JSON.parse(saved) } as AppData : demoData();
   } catch {
     return demoData();
   }
@@ -58,6 +59,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [learningReady, setLearningReady] = useState(false);
   const supabase = useMemo(() => browserSupabase(), []);
 
   const refresh = useCallback(async () => {
@@ -75,12 +77,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
+      let missingLearningSchema = false;
       const results = await Promise.all(ENTITY_NAMES.map(async (table) => {
-        const { data: rows, error: queryError } = await supabase.from(table).select("*").is("deleted_at", null).limit(1000);
+        const { data: rows, error: queryError } = await supabase.from(table).select("*").is("deleted_at", null).limit(table === "curriculum_topics" || table === "learning_baselines" ? 2000 : table === "curriculum_prerequisites" ? 5000 : 1000);
+        const learningEntity = table.startsWith("curriculum_") || table.startsWith("learning_") && table !== "learning_sessions" || table === "scheduler_runs" || table === "telegram_message_map";
+        if (learningEntity && queryError && ["42P01", "PGRST205"].includes(queryError.code)) {
+          missingLearningSchema = true;
+          return [table, []] as const;
+        }
         if (queryError) throw queryError;
         return [table, rows ?? []] as const;
       }));
       setData(Object.fromEntries(results) as AppData);
+      setLearningReady(!missingLearningSchema);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load your workspace.");
@@ -95,6 +104,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(() => { setTimeout(() => { void refresh(); }, 0); });
     return () => listener.subscription.unsubscribe();
   }, [refresh, supabase]);
+
+  const userId = user?.id;
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const requestRefresh = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => { void refresh(); }, 400);
+    };
+    document.addEventListener("visibilitychange", requestRefresh);
+    window.addEventListener("focus", requestRefresh);
+    const channel = supabase.channel(`learning-updates:${userId}`);
+    for (const table of ["tasks", "focus_sessions", "learning_sessions", "learning_assignments", "learning_feedback", "skill_topics", "learning_baselines", "curriculum_sources"]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `user_id=eq.${userId}` }, requestRefresh);
+    }
+    channel.subscribe();
+    return () => {
+      clearTimeout(refreshTimer);
+      document.removeEventListener("visibilitychange", requestRefresh);
+      window.removeEventListener("focus", requestRefresh);
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, userId, refresh]);
 
   useEffect(() => {
     if (!hostedMode && !loading) localStorage.setItem(DEMO_KEY, JSON.stringify(data));
@@ -162,7 +195,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setData(emptyData());
   };
 
-  return <StoreContext.Provider value={{ data, loading, error, user, hosted: hostedMode, add, update, remove, refresh, resetDemo, signOut }}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={{ data, loading, error, user, hosted: hostedMode, learningReady, add, update, remove, refresh, resetDemo, signOut }}>{children}</StoreContext.Provider>;
 }
 
 export function useStore() {

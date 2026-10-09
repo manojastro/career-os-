@@ -52,22 +52,25 @@ export function weeklyTime(data: AppData, date = new Date()) {
     return !task.deleted_at && scheduled >= start && scheduled < end;
   });
   const sessions = data.focus_sessions.filter((session) => !session.deleted_at && instantDay(session.started_at) >= start && instantDay(session.started_at) < end);
-  const taskIds = new Set([...scheduledTasks.map((task) => task.id), ...sessions.map((session) => session.task_id)]);
+  const learning = data.learning_sessions.filter(session => !session.deleted_at && !session.focus_session_id && instantDay(session.occurred_at) >= start && instantDay(session.occurred_at) < end);
+  const taskIds = new Set([...scheduledTasks.map((task) => task.id), ...sessions.map((session) => session.task_id), ...learning.map(session => session.task_id)]);
   const tasks = data.tasks.filter((task) => taskIds.has(task.id) && !task.deleted_at);
+  const unlinkedLearningMinutes = learning.filter(session => !session.task_id || !tasks.some(task => task.id === session.task_id)).reduce((sum, session) => sum + session.minutes, 0);
   const actualFor = (taskId: string) => {
     const focused = sessions.filter((session) => session.task_id === taskId).reduce((sum, session) => sum + session.duration_minutes, 0);
-    const hasAnySession = data.focus_sessions.some((session) => session.task_id === taskId);
-    return hasAnySession ? focused : scheduledTasks.find((task) => task.id === taskId)?.actual_minutes ?? 0;
+    const learned = learning.filter(session => session.task_id === taskId).reduce((sum, session) => sum + session.minutes, 0);
+    const hasAnySession = data.focus_sessions.some(session => session.task_id === taskId) || data.learning_sessions.some(session => session.task_id === taskId && !session.focus_session_id);
+    return hasAnySession ? focused + learned : scheduledTasks.find((task) => task.id === taskId)?.actual_minutes ?? 0;
   };
   return {
     start,
     end,
     planned_minutes: scheduledTasks.reduce((total, task) => total + task.estimated_minutes, 0),
-    actual_minutes: tasks.reduce((total, task) => total + actualFor(task.id), 0),
+    actual_minutes: tasks.reduce((total, task) => total + actualFor(task.id), 0) + unlinkedLearningMinutes,
     completed: data.tasks.filter((task) => task.status === "completed" && instantDay(task.completed_at) >= start && instantDay(task.completed_at) < end).length,
-    by_type: Object.fromEntries([...new Set(tasks.map((task) => task.type))].map((type) => [type, {
+    by_type: Object.fromEntries([...new Set([...tasks.map((task) => task.type), ...(unlinkedLearningMinutes ? ["Learn"] : [])])].map((type) => [type, {
       planned: scheduledTasks.filter((task) => task.type === type).reduce((sum, task) => sum + task.estimated_minutes, 0),
-      actual: tasks.filter((task) => task.type === type).reduce((sum, task) => sum + actualFor(task.id), 0),
+      actual: tasks.filter((task) => task.type === type).reduce((sum, task) => sum + actualFor(task.id), 0) + (type === "Learn" ? unlinkedLearningMinutes : 0),
     }])) as Record<string, { planned: number; actual: number }>,
   };
 }

@@ -1,3 +1,5 @@
+import type { LearningPreferences, CurriculumSource, CurriculumVersion, CurriculumTopic, CurriculumPrerequisite, LearningBaseline, LearningAssignment, LearningFeedback, TelegramMapping, SchedulerRun } from "../learning/models";
+
 export type TaskStatus = "backlog" | "month" | "week" | "today" | "doing" | "completed";
 export type TaskType = "Learn" | "Build" | "Practice" | "Interview" | "Network" | "Apply" | "Research" | "Document" | "Admin";
 export type Priority = "low" | "medium" | "high";
@@ -25,6 +27,7 @@ export interface Task extends RowBase {
   scheduled_start: string | null;
   scheduled_end: string | null;
   skill_id: string | null;
+  skill_topic_id?: string | null;
   project_id: string | null;
   goal_id: string | null;
   milestone_id: string | null;
@@ -176,6 +179,21 @@ export interface FocusSession extends RowBase {
   note: string;
 }
 
+export interface LearningSession extends RowBase {
+  skill_id: string | null;
+  task_id: string | null;
+  minutes: number;
+  learned: string;
+  occurred_at: string;
+  focus_session_id?: string | null;
+}
+
+export interface Notification extends RowBase {
+  title: string;
+  body: string;
+  read_at: string | null;
+}
+
 export interface Note extends RowBase {
   title: string;
   content: string;
@@ -249,6 +267,18 @@ export interface EntityMap {
   job_applications: JobApplication;
   job_skill_requirements: JobSkillRequirement;
   focus_sessions: FocusSession;
+  learning_sessions: LearningSession;
+  notifications: Notification;
+  learning_preferences: LearningPreferences;
+  curriculum_sources: CurriculumSource;
+  curriculum_versions: CurriculumVersion;
+  curriculum_topics: CurriculumTopic;
+  curriculum_prerequisites: CurriculumPrerequisite;
+  learning_baselines: LearningBaseline;
+  learning_assignments: LearningAssignment;
+  learning_feedback: LearningFeedback;
+  telegram_message_map: TelegramMapping;
+  scheduler_runs: SchedulerRun;
   notes: Note;
   resources: Resource;
   evidence: Evidence;
@@ -265,7 +295,10 @@ export const ENTITY_NAMES: EntityName[] = [
   "tasks", "goals", "milestones", "skills", "skill_topics", "projects", "contacts",
   "network_interactions", "interview_questions", "interview_practice", "interview_stories", "job_applications",
   "job_skill_requirements", "focus_sessions", "notes", "resources", "evidence", "inbox_items", "activity_log",
-  "daily_logs", "planner_blocks",
+  "daily_logs", "planner_blocks", "learning_sessions", "notifications",
+  "learning_preferences", "curriculum_sources", "curriculum_versions", "curriculum_topics",
+  "curriculum_prerequisites", "learning_baselines", "learning_assignments", "learning_feedback",
+  "telegram_message_map", "scheduler_runs",
 ];
 
 export function emptyData(): AppData {
