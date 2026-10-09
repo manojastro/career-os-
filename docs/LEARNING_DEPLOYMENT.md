@@ -22,7 +22,7 @@ Next.js changes: `src/lib/learning`, `src/app/api/learning`, `src/app/api/agent/
 
 ## Verification
 
-- Next.js lint, typecheck (also performed during build), production build and 60 unit/database/adapter tests passed after updating Next.js/eslint-config-next to16.3.8 and sharp/source-map-js to available security patches.
+- Next.js lint, typecheck (also performed during build), production build and 64 unit/database/adapter tests passed after updating Next.js/eslint-config-next to16.3.8 and sharp/source-map-js to available security patches. Four adapter tests prove reserve-before-send, configured-recipient-only delivery, unknown transport outcomes and receipt persistence.
 - Browser regressions: seven flows passed before the patch update. After the patch, six passed and one hit Chromium ERR_NETWORK_IO_SUSPENDED during navigation; the isolated repeat of that flow passed (13.5s total). All seven flows are therefore verified with the final dependency versions.
 - Lovable build agent reported 55 learning tests, typecheck/build passing and ten real-database safeguards passing; disposable test data was removed.
 - Live login, demo dashboard/settings navigation and privacy gate checked in the browser.
@@ -39,4 +39,4 @@ Production dependency audit for the Next.js tree reports zero vulnerabilities. F
 4. Verify authenticated context, create a real plan, reserve/send/record a real Telegram message, process its reply, re-read progress and retry the same reply to prove no duplicate minutes.
 5. Start Hermes and configure a supported Windows logon/reboot supervisor; verify restart behavior. Resume paused job `46a628bb9ae9` only after the roundtrip passes.
 
-Installed profile: `C:/Users/manoj/AppData/Local/hermes`; Hermes v0.21.3; skill `career-os-learning`; Python gate `scripts/career_os_learning_precheck.py`; pulse every five minutes reads persisted app settings. Gateway currently stopped, cron job paused. Keep automation status inactive until the remaining checks pass.
+Installed profile: `C:/Users/manoj/AppData/Local/hermes`; Hermes v0.21.3; skill `career-os-learning`; Python gate `scripts/career_os_learning_precheck.py`; pulse every five minutes reads persisted app settings. `telegram-send.mjs` reserves before sending to the private configured recipient and records actual receipts, including unknown outcomes without blind resend. Gateway currently stopped, cron job paused. Keep automation status inactive until the remaining checks pass.
