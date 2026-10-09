@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/router-compat";
 import { Button, Dialog, Field } from "./ui";
 import { classifyCapture } from "@/lib/domain/insights";
 import { useStore } from "@/lib/store";
@@ -37,3 +35,4 @@ export function CaptureDialog({ onClose }: { onClose: () => void }) {
     {error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={saving || !content.trim()} onClick={() => void save()}>{saving ? "Saving…" : `Save ${proposed}`}</Button></div>
   </Dialog>;
 }
+

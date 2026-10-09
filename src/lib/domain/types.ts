@@ -35,6 +35,7 @@ export interface Task extends RowBase {
   tags: string[];
   recurrence: string | null;
   evidence_required: boolean;
+  skill_topic_id?: string | null;
 }
 
 export interface Goal extends RowBase {
@@ -234,6 +235,23 @@ export interface PlannerBlock extends RowBase {
   end_time: string;
 }
 
+/** Descriptive learning record. Time is ledgered in focus_sessions; these minutes are never summed. */
+export interface LearningSession extends RowBase {
+  skill_id: string | null;
+  task_id: string | null;
+  minutes: number;
+  learned: string;
+  occurred_at: string;
+  /** Set when this row mirrors a focus_sessions ledger row; its minutes are already counted there. */
+  focus_session_id?: string | null;
+}
+
+export interface AppNotification extends RowBase {
+  title: string;
+  body: string;
+  read_at: string | null;
+}
+
 export interface EntityMap {
   tasks: Task;
   goals: Goal;
@@ -256,6 +274,8 @@ export interface EntityMap {
   activity_log: Activity;
   daily_logs: DailyLog;
   planner_blocks: PlannerBlock;
+  learning_sessions: LearningSession;
+  notifications: AppNotification;
 }
 
 export type EntityName = keyof EntityMap;
@@ -265,9 +285,10 @@ export const ENTITY_NAMES: EntityName[] = [
   "tasks", "goals", "milestones", "skills", "skill_topics", "projects", "contacts",
   "network_interactions", "interview_questions", "interview_practice", "interview_stories", "job_applications",
   "job_skill_requirements", "focus_sessions", "notes", "resources", "evidence", "inbox_items", "activity_log",
-  "daily_logs", "planner_blocks",
+  "daily_logs", "planner_blocks", "learning_sessions", "notifications",
 ];
 
 export function emptyData(): AppData {
   return Object.fromEntries(ENTITY_NAMES.map((name) => [name, []])) as unknown as AppData;
 }
+

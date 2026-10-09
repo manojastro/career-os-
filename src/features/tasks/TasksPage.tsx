@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button, Empty, PageHeading, Section } from "@/components/ui";
@@ -23,3 +21,4 @@ export function TasksPage({ openTask }: { openTask: () => void }) {
     <Section title={stage === "all" ? "All tasks" : stages.find((item) => item.value === stage)?.label ?? "Tasks"} meta={`${tasks.length} tasks`}>{tasks.length ? tasks.map((task) => <TaskRow key={task.id} task={task} />) : <Empty title="No tasks here" detail="Create a task or choose another stage." />}</Section>
   </>;
 }
+

@@ -57,3 +57,4 @@ export function localCommand(prompt: string, data: AppData): CommandResult {
 
   return result("I can help review neglected work, plan tomorrow, move unfinished interview tasks, add backlog tasks, and find recorded learning. Try one of those commands, or configure an AI provider for broader requests.");
 }
+

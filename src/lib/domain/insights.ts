@@ -59,17 +59,30 @@ export function weeklyTime(data: AppData, date = new Date()) {
     const hasAnySession = data.focus_sessions.some((session) => session.task_id === taskId);
     return hasAnySession ? focused : scheduledTasks.find((task) => task.id === taskId)?.actual_minutes ?? 0;
   };
+  // Legacy standalone learning_sessions (no focus_session_id) count once; focus mirrors never do.
+  // A legacy row tied to a task whose minutes come from the actual_minutes fallback is already counted.
+  const fallbackTaskIds = new Set(scheduledTasks.filter((task) => !data.focus_sessions.some((session) => session.task_id === task.id)).map((task) => task.id));
+  const legacy = standaloneLearningSessions(data).filter((session) => instantDay(session.occurred_at) >= start && instantDay(session.occurred_at) < end && !(session.task_id && fallbackTaskIds.has(session.task_id)));
+  const legacyMinutes = legacy.reduce((sum, session) => sum + (session.minutes || 0), 0);
+  const byType = Object.fromEntries([...new Set(tasks.map((task) => task.type))].map((type) => [type, {
+    planned: scheduledTasks.filter((task) => task.type === type).reduce((sum, task) => sum + task.estimated_minutes, 0),
+    actual: tasks.filter((task) => task.type === type).reduce((sum, task) => sum + actualFor(task.id), 0),
+  }])) as Record<string, { planned: number; actual: number }>;
+  if (legacyMinutes) byType.Learn = { planned: byType.Learn?.planned ?? 0, actual: (byType.Learn?.actual ?? 0) + legacyMinutes };
   return {
     start,
     end,
     planned_minutes: scheduledTasks.reduce((total, task) => total + task.estimated_minutes, 0),
-    actual_minutes: tasks.reduce((total, task) => total + actualFor(task.id), 0),
+    actual_minutes: tasks.reduce((total, task) => total + actualFor(task.id), 0) + legacyMinutes,
+    legacy_learning_minutes: legacyMinutes,
     completed: data.tasks.filter((task) => task.status === "completed" && instantDay(task.completed_at) >= start && instantDay(task.completed_at) < end).length,
-    by_type: Object.fromEntries([...new Set(tasks.map((task) => task.type))].map((type) => [type, {
-      planned: scheduledTasks.filter((task) => task.type === type).reduce((sum, task) => sum + task.estimated_minutes, 0),
-      actual: tasks.filter((task) => task.type === type).reduce((sum, task) => sum + actualFor(task.id), 0),
-    }])) as Record<string, { planned: number; actual: number }>,
+    by_type: byType,
   };
+}
+
+/** Learning sessions that are NOT focus-ledger mirrors (focus_session_id unset) and not deleted. */
+export function standaloneLearningSessions(data: AppData) {
+  return (data.learning_sessions ?? []).filter((session) => !session.deleted_at && !session.focus_session_id);
 }
 
 export function todayTasks(data: AppData, date = localDay()) {
@@ -113,3 +126,4 @@ export function searchData(data: AppData, query: string): SearchGroup[] {
     return { entity, items };
   }).filter((group) => group.items.length > 0);
 }
+

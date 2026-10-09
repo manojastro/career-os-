@@ -89,3 +89,4 @@ export function demoData(): AppData {
   ];
   return data;
 }
+

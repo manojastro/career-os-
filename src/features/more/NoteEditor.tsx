@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -36,3 +34,4 @@ export function NoteEditor({ note }: { note: Note }) {
 
   return <div><div className="row" style={{ marginBottom: 8 }}><Button onClick={() => editor?.chain().focus().toggleBold().run()} aria-label="Bold">B</Button><Button onClick={() => editor?.chain().focus().toggleItalic().run()} aria-label="Italic"><i>I</i></Button><Button onClick={() => editor?.chain().focus().toggleBulletList().run()}>List</Button><Button onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>Code</Button><span className="small muted" role="status">{status}</span></div><EditorContent editor={editor} /></div>;
 }
+

@@ -1,12 +1,11 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "@/lib/router-compat";
 import { ArrowRight, Play, AlertCircle } from "lucide-react";
 import { Badge, Button, Empty, PageHeading, Progress, Section, dateLabel, minutesLabel } from "@/components/ui";
 import { goalProgress, overdueTasks, projectProgress, todayTasks, weeklyTime, localDay } from "@/lib/domain/insights";
 import { useStore } from "@/lib/store";
 import { useFocus } from "@/features/focus/FocusProvider";
 import { TaskRow } from "@/features/tasks/TaskRow";
+import { TodayLearningCard } from "@/features/learning-manager/LearningManager";
 
 export function DashboardPage({ openCapture }: { openCapture: () => void }) {
   const { data } = useStore();
@@ -28,6 +27,7 @@ export function DashboardPage({ openCapture }: { openCapture: () => void }) {
         {today.length ? today.map((task) => <TaskRow key={task.id} task={task} compact />) : <Empty title="Today is open" detail="Move a task into Today to make a deliberate plan." />}
       </Section>
       {(overdue.length > 0 || followups.length > 0) && <Section title="Needs attention" meta="Clear or reschedule"><div className="section-body stack" style={{ gap: 9 }}>{overdue.slice(0, 3).map((task) => <div key={task.id} className="row-between"><div className="row"><AlertCircle size={15} style={{ color: "var(--red)" }} /><span className="small">{task.title}</span></div><Badge tone="red">Overdue</Badge></div>)}{followups.slice(0, 3).map((contact) => <div key={contact.id} className="row-between"><div className="row"><AlertCircle size={15} style={{ color: "var(--amber)" }} /><span className="small">Follow up with {contact.name}</span></div><Badge tone="amber">{dateLabel(contact.next_followup)}</Badge></div>)}</div></Section>}
+      <TodayLearningCard />
       <div className="grid-two"><Section title="Goals & milestones" action={<Link href="/goals" className="link small">Open goals</Link>}><div className="section-body stack" style={{ gap: 17 }}>{activeGoals.slice(0, 3).map((goal) => { const progress = goalProgress(data, goal.id); return <div key={goal.id}><div className="row-between small" style={{ marginBottom: 7 }}><span className="semibold">{goal.title}</span><span className="muted">{progress}%</span></div><Progress value={progress} /></div>; })}{!activeGoals.length && <Empty title="No active goals" detail="Create one goal and break it into milestones." />}</div></Section>
       <Section title="Skills in motion" action={<Link href="/skills" className="link small">All skills</Link>}><div className="section-body stack" style={{ gap: 11 }}>{data.skills.slice(0, 5).map((skill) => <div key={skill.id} className="row-between small"><span className="semibold">{skill.name}</span><Badge tone={skill.status === "Applied" ? "green" : skill.status === "Learning" ? "amber" : "blue"}>{skill.status}</Badge></div>)}</div></Section></div>
       <Section title="Projects" action={<Link href="/projects" className="link small">All projects</Link>}><div>{data.projects.filter((project) => project.status !== "Archived").slice(0, 3).map((project) => <div className="list-row" key={project.id}><div className="row-between small"><span className="semibold">{project.name}</span><Badge tone="blue">{project.status}</Badge></div><div className="row-between small muted" style={{ marginTop: 7 }}><span>Next: {data.tasks.find((task) => task.project_id === project.id && task.status !== "completed")?.title ?? "No open task"}</span><span>{projectProgress(data, project.id)}%</span></div></div>)}</div></Section>
@@ -40,3 +40,4 @@ export function DashboardPage({ openCapture }: { openCapture: () => void }) {
     </div></div>
   </>;
 }
+

@@ -1,5 +1,3 @@
-"use client";
-
 import { X } from "lucide-react";
 import { useEffect } from "react";
 
@@ -51,3 +49,4 @@ export function minutesLabel(minutes: number) {
   const m = minutes % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
 }
+

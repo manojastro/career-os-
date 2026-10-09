@@ -1,5 +1,3 @@
-"use client";
-
 import { PageHeading, Section } from "@/components/ui";
 import { DashboardPage } from "./dashboard/DashboardPage";
 import { TodayPage } from "./today/TodayPage";
@@ -14,24 +12,29 @@ import { InterviewsPage } from "./interviews/InterviewsPage";
 import { JobsPage } from "./jobs/JobsPage";
 import { MorePage } from "./more/MorePage";
 import { SettingsPage } from "./settings/SettingsPage";
+import { TodayAgentPanel, JobLeadsPanel, LearningPage, ProjectTasksPanel, OutreachPanel, VaultPage, AgentActivityPage, AgentSettingsPanel } from "./agent/AgentPanels";
 import { CopilotPage } from "./copilot/CopilotPage";
 
 export function PageRouter({ section, openCapture, openTask }: { section: string; openCapture: () => void; openTask: () => void }) {
   switch (section) {
     case "dashboard": return <DashboardPage openCapture={openCapture} />;
-    case "today": return <TodayPage openTask={openTask} />;
+    case "today": return <><TodayAgentPanel /><TodayPage openTask={openTask} /></>;
     case "tasks": return <TasksPage openTask={openTask} />;
     case "planner": return <PlannerPage />;
     case "goals": return <GoalsPage />;
     case "skills": return <SkillsPage />;
-    case "projects": return <ProjectsPage />;
+    case "projects": return <><ProjectsPage /><ProjectTasksPanel /></>;
     case "daily-log": return <DailyLogPage />;
-    case "networking": return <NetworkingPage />;
+    case "networking": return <><NetworkingPage /><OutreachPanel /></>;
     case "interviews": return <InterviewsPage />;
-    case "jobs": return <JobsPage />;
+    case "jobs": return <><JobsPage /><JobLeadsPanel /></>;
     case "more": return <MorePage />;
-    case "settings": return <SettingsPage />;
+    case "settings": return <><SettingsPage /><AgentSettingsPanel /></>;
+    case "learning": return <LearningPage />;
+    case "vault": return <VaultPage />;
+    case "agent": return <AgentActivityPage />;
     case "copilot": return <CopilotPage />;
     default: return <><PageHeading title={section.replaceAll("-", " ")} subtitle="This workspace is being connected to your career records." /><Section title="Coming together"><div className="empty">More tools will appear here.</div></Section></>;
   }
 }
+

@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Plus, Check } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Progress, Section, dateLabel } from "@/components/ui";
@@ -46,3 +44,4 @@ export function GoalsPage() {
     {milestoneGoal && <Dialog title="Add milestone" onClose={() => setMilestoneGoal(null)}><div className="form-grid"><Field label="Milestone title" name="milestone-title" full><input id="milestone-title" className="input" autoFocus value={title} onChange={(event) => setTitle(event.target.value)} /></Field><Field label="Due date" name="milestone-date"><input id="milestone-date" type="date" className="input" value={date} onChange={(event) => setDate(event.target.value)} /></Field><Field label="Success criteria" name="milestone-criteria" full><textarea id="milestone-criteria" className="textarea" value={criteria} onChange={(event) => setCriteria(event.target.value)} /></Field></div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setMilestoneGoal(null)}>Cancel</Button><Button variant="primary" onClick={() => void saveMilestone()}>Create milestone</Button></div></Dialog>}
   </>;
 }
+

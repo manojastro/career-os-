@@ -1,5 +1,4 @@
-"use client";
-
+import { aiHeaders } from "@/lib/ai-headers";
 import { useState } from "react";
 import { Sparkles, ArrowUp } from "lucide-react";
 import { Badge, Button, Empty, PageHeading, Section } from "@/components/ui";
@@ -23,7 +22,7 @@ export function CopilotPage() {
     if (value.trim().length < 3) return;
     setPrompt(value); setBusy(true); setError(""); setResponse(null); setApplied([]);
     try {
-      const result = await fetch("/api/ai/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: value, today: localDay() }) });
+      const result = await fetch("/api/ai/command", { method: "POST", headers: await aiHeaders(), body: JSON.stringify({ prompt: value, today: localDay() }) });
       if (result.status === 503) { setResponse(localCommand(value, data)); return; }
       const payload: unknown = await result.json();
       if (!result.ok) throw new Error((payload as { error?: string }).error ?? "AI request failed.");
@@ -89,3 +88,4 @@ export function CopilotPage() {
       {response && <Section title="Response" action={<Badge>{response.source === "ai" ? "AI provider" : "Local rules"}</Badge>}><div className="section-body"><p style={{ lineHeight: 1.6, marginTop: 0 }}>{response.answer}</p>{response.proposals.length > 0 && <><h3 className="small" style={{ margin: "18px 0 8px" }}>Proposed changes</h3><div style={{ border: "1px solid var(--line)", borderRadius: 6 }}>{response.proposals.map((proposal, index) => <div className="list-row row-between small" key={`${index}-${proposal.action}`}><span>{describe(proposal)}</span><Badge tone={applied.includes(index) ? "green" : "amber"}>{applied.includes(index) ? "Saved" : "Review"}</Badge></div>)}</div><div className="form-actions"><Button variant="primary" disabled={applying || applied.length === response.proposals.length} onClick={() => void confirm()}>{applying ? "Saving…" : applied.length === response.proposals.length ? "All saved" : `Confirm ${response.proposals.length - applied.length} change${response.proposals.length - applied.length === 1 ? "" : "s"}`}</Button></div></>}</div></Section>}
     </div><Section title="Try a command"><div>{examples.map((example) => <button key={example} className="list-row row-between" style={{ width: "100%", background: "transparent", borderTop: 0, borderLeft: 0, borderRight: 0, textAlign: "left", color: "var(--text)" }} onClick={() => void ask(example)}><span className="small">{example}</span><Sparkles size={14} className="muted" /></button>)}</div>{!response && <Empty title="Your workspace is the context" detail="The local command set works without an AI key. A configured provider can handle broader requests." />}</Section></div></>;
 }
+

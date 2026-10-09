@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/lib/router-compat";
 import { Archive, BookOpenText, FileText, Library, LineChart, Search, ShieldCheck, CalendarCheck, Download, ArrowRight } from "lucide-react";
 import { PageHeading, Section } from "@/components/ui";
 import { NotesPanel, ResourcesPanel, EvidencePanel, InboxPanel } from "./LibraryPanels";
@@ -26,3 +24,4 @@ export function MorePage() {
     {tab === "Inbox" && <InboxPanel />}{tab === "Notes" && <NotesPanel />}{tab === "Resources" && <ResourcesPanel />}{tab === "Evidence" && <EvidencePanel />}{tab === "Weekly review" && <WeeklyReviewPanel />}{tab === "Analytics" && <AnalyticsPanel />}{tab === "Export" && <ExportPanel />}
   </>;
 }
+

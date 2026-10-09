@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section, dateLabel } from "@/components/ui";
@@ -54,3 +52,4 @@ export function NetworkingPage() {
     {interaction && contact && <Dialog title={`Log interaction with ${contact.name}`} onClose={() => setInteraction(false)}><div className="form-grid"><Field label="Type" name="interaction-type"><select id="interaction-type" className="select" value={kind} onChange={(event) => setKind(event.target.value as NetworkInteraction["kind"])}>{kinds.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="Next follow-up" name="interaction-followup"><input id="interaction-followup" type="date" className="input" value={followup} onChange={(event) => setFollowup(event.target.value)} /></Field><Field label="Notes" name="interaction-notes" full><textarea id="interaction-notes" className="textarea" value={notes} onChange={(event) => setNotes(event.target.value)} /></Field></div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setInteraction(false)}>Cancel</Button><Button variant="primary" onClick={() => void saveInteraction()}>Save interaction</Button></div></Dialog>}
   </>;
 }
+

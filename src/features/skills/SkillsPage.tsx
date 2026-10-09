@@ -1,11 +1,10 @@
-"use client";
-
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section } from "@/components/ui";
 import { localDay, skillReadiness } from "@/lib/domain/insights";
 import { SkillStatus } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
+import { LearningPathSection } from "@/features/learning-manager/LearningManager";
 
 const statuses: SkillStatus[] = ["Not Started", "Learning", "Practicing", "Applied", "Interview Ready"];
 const dimensions = ["Knowledge", "Hands-on", "Project proof", "Production", "Interview"];
@@ -40,7 +39,9 @@ export function SkillsPage() {
       <Section title="Topics" meta={`${topics.length}`} action={<Button onClick={() => { setName(""); setShowTopic(true); }}><Plus size={14} />Add topic</Button>}><div>{topics.map((topic) => <div className="list-row row-between" key={topic.id}><span className="small semibold">{topic.title}</span><select className="select" aria-label={`Status for ${topic.title}`} style={{ width: 130, minHeight: 30, padding: "4px 6px" }} value={topic.status} onChange={(event) => void update("skill_topics", topic.id, { status: event.target.value as SkillStatus })}>{statuses.map((status) => <option key={status}>{status}</option>)}</select></div>)}{!topics.length && <Empty title="No topics yet" detail="Break this skill into specific areas to study and practice." />}</div></Section>
       <Section title="Proof & linked work"><div className="section-body"><div className="row-between small"><span>Evidence records</span><strong>{evidence.length}</strong></div><div className="row-between small" style={{ marginTop: 8 }}><span>Linked project tasks</span><strong>{data.tasks.filter((task) => task.skill_id === skill.id && task.status === "completed").length} completed</strong></div>{evidence.map((item) => <div className="list-row small" key={item.id}>{item.title} <span className="muted">· {item.kind}</span></div>)}{!evidence.length && <p className="small muted">Add code, a demo, or a write-up in Evidence under More.</p>}</div></Section>
       </> : <Section title="Choose a skill"><Empty title="Your skill map starts here" detail="Add a skill to track topics and proof." /></Section>}</div></div>
+    <div style={{ marginTop: 16 }}><LearningPathSection /></div>
     {showSkill && <Dialog title="Add skill" onClose={() => setShowSkill(false)}><div className="form-grid"><Field label="Skill name" name="skill-name" full><input id="skill-name" className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></Field><Field label="Category" name="skill-category" full><input id="skill-category" className="input" placeholder="Engineering" value={category} onChange={(event) => setCategory(event.target.value)} /></Field></div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setShowSkill(false)}>Cancel</Button><Button variant="primary" onClick={() => void saveSkill()}>Add skill</Button></div></Dialog>}
     {showTopic && <Dialog title={`Add topic to ${skill?.name}`} onClose={() => setShowTopic(false)}><Field label="Topic name" name="topic-name"><input id="topic-name" className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></Field>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setShowTopic(false)}>Cancel</Button><Button variant="primary" onClick={() => void saveTopic()}>Add topic</Button></div></Dialog>}
   </>;
 }
+

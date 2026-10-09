@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button, Dialog, Empty, Section, minutesLabel } from "@/components/ui";
@@ -49,3 +47,4 @@ export function ExportPanel() {
   };
   return <Section title="Export / backup"><div className="section-body"><p className="small muted" style={{ maxWidth: 600 }}>Download a JSON copy of the records currently loaded in this workspace. Keep the file private: it can contain notes, contacts, and job details.</p><Button variant="primary" onClick={download}>Download JSON backup</Button>{hosted && <p className="micro muted">Hosted lists currently load up to 1,000 records per table. For a full database backup, use Supabase backups.</p>}</div></Section>;
 }
+

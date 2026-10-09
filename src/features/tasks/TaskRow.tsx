@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Play, Pencil } from "lucide-react";
 import { Task } from "@/lib/domain/types";
@@ -19,3 +17,4 @@ export function TaskRow({ task, compact = false }: { task: Task; compact?: boole
     <div className="task-actions"><Button variant="quiet" className="btn-icon" aria-label={`Edit ${task.title}`} onClick={() => setEditing(true)}><Pencil size={14} /></Button>{task.status !== "completed" && <Button variant="quiet" onClick={() => start(task)}><Play size={14} /><span className="hide-mobile">Focus</span></Button>}</div>
   </div>{editing && <TaskForm task={task} onClose={() => setEditing(false)} />}</>;
 }
+

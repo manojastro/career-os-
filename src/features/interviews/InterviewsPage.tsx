@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section, dateLabel } from "@/components/ui";
@@ -54,3 +52,4 @@ export function InterviewsPage() {
     {practicing && item && <Dialog title="Record practice" onClose={() => setPracticing(false)}><div className="small semibold" style={{ marginBottom: 15 }}>{item.question}</div><Field label="Confidence (0–4)" name="practice-confidence"><select id="practice-confidence" className="select" value={confidence} onChange={(event) => setConfidence(Number(event.target.value))}>{[0, 1, 2, 3, 4].map((value) => <option key={value} value={value}>{value} {value === 0 ? "— unfamiliar" : value === 4 ? "— can explain clearly" : ""}</option>)}</select></Field><Field label="What improved or remains weak?" name="practice-notes"><textarea id="practice-notes" className="textarea" value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setPracticing(false)}>Cancel</Button><Button variant="primary" onClick={() => void savePractice()}>Save practice</Button></div></Dialog>}
   </>;
 }
+

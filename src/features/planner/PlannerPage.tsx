@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { DndContext, useDraggable, useDroppable, DragEndEvent } from "@dnd-kit/core";
 import { Plus, GripVertical } from "lucide-react";
@@ -69,3 +67,4 @@ export function PlannerPage() {
     {adding && <Dialog title="Add time block" onClose={() => setAdding(false)}><div className="form-grid"><Field label="Task (optional)" name="block-task" full><select id="block-task" className="select" value={taskId} onChange={(event) => setTaskId(event.target.value)}><option value="">No linked task</option>{data.tasks.filter((task) => task.status !== "completed").map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select></Field><Field label="Title" name="block-title" full><input id="block-title" className="input" value={title} onChange={(event) => setTitle(event.target.value)} disabled={!!taskId} /></Field><Field label="Day" name="block-day"><input id="block-day" type="date" className="input" value={date} onChange={(event) => setDate(event.target.value)} /></Field><div /><Field label="Start" name="block-start"><input id="block-start" type="time" className="input" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label="End" name="block-end"><input id="block-end" type="time" className="input" value={end} onChange={(event) => setEnd(event.target.value)} /></Field></div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setAdding(false)}>Cancel</Button><Button variant="primary" onClick={() => void saveBlock()}>Save block</Button></div></Dialog>}
   </>;
 }
+

@@ -1,5 +1,4 @@
-"use client";
-
+import { aiHeaders } from "@/lib/ai-headers";
 import { useState } from "react";
 import { Plus, ExternalLink } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section, dateLabel } from "@/components/ui";
@@ -47,7 +46,7 @@ export function JobsPage() {
     if (!job) return;
     setAnalyzing(true); setError("");
     try {
-      const response = await fetch("/api/ai/analyze-jd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: job.job_description }) });
+      const response = await fetch("/api/ai/analyze-jd", { method: "POST", headers: await aiHeaders(), body: JSON.stringify({ description: job.job_description }) });
       const payload = await response.json() as { error?: string; required_skills?: string[]; preferred_skills?: string[]; tools?: string[]; cloud_requirements?: string[]; experience_signals?: string[]; responsibilities?: string[] };
       if (!response.ok) throw new Error(payload.error ?? "Could not analyze the job description.");
       const groups = [["required", payload.required_skills ?? []], ["preferred", payload.preferred_skills ?? []], ["tool", payload.tools ?? []], ["cloud", payload.cloud_requirements ?? []]] as const;
@@ -86,3 +85,4 @@ export function JobsPage() {
     {planPreview && job && <Dialog title="Review gap plan" onClose={() => setPlanPreview(false)}><p className="small muted">This will create one goal, one milestone, and {needsPlan.length * 2} tasks. Review the suggested work before saving.</p><div>{needsPlan.map((item) => <div className="list-row small" key={item.name}><strong>{item.name}</strong><div className="muted">Learn the requirement · Practice interview questions</div></div>)}</div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setPlanPreview(false)}>Cancel</Button><Button variant="primary" onClick={() => void createPlan()}>Create plan</Button></div></Dialog>}
   </>;
 }
+

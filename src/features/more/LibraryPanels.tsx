@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { ExternalLink, Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, Section } from "@/components/ui";
@@ -72,3 +70,4 @@ export function InboxPanel() {
   };
   return <Section title="Universal inbox" meta={`${data.inbox_items.filter((item) => !item.archived).length} unprocessed`}><div className="section-body"><div className="row"><input className="input" aria-label="Inbox capture" placeholder="Capture an unprocessed thought or URL" value={content} onChange={(event) => setContent(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void save(); }} /><Button variant="primary" onClick={() => void save()}>Add</Button></div>{error && <p className="error">{error}</p>}</div><div>{data.inbox_items.filter((item) => !item.archived).map((item) => <div className="list-row row-between" key={item.id}><span className="small">{item.content}</span><div className="row"><Button onClick={() => void convert(item.id, item.content)}>Classify & save</Button><Button variant="quiet" onClick={() => void update("inbox_items", item.id, { archived: true })}>Archive</Button></div></div>)}{!data.inbox_items.some((item) => !item.archived) && <Empty title="Inbox is clear" detail="Capture thoughts here when you are not ready to organize them." />}</div></Section>;
 }
+

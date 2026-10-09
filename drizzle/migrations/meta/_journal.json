@@ -1,0 +1,42 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791545502472,
+      "tag": "0000_learning_manager",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791545777000,
+      "tag": "0001_learning_manager_commands",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791547146228,
+      "tag": "0002_learning_transactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791547244959,
+      "tag": "0003_learning_transactions_rpc",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791550916501,
+      "tag": "0004_learning_timezone_delivery_reservations",
+      "breakpoints": true
+    }
+  ]
+}
+

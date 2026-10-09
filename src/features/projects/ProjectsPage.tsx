@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { ExternalLink, Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Progress, Section, dateLabel } from "@/components/ui";
@@ -42,3 +40,4 @@ export function ProjectsPage() {
     {adding && <Dialog title="New project" onClose={() => setAdding(false)}><div className="form-grid"><Field label="Project name" name="project-name" full><input id="project-name" className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></Field><Field label="Description" name="project-description" full><textarea id="project-description" className="textarea" value={description} onChange={(event) => setDescription(event.target.value)} /></Field><Field label="Problem" name="project-problem" full><input id="project-problem" className="input" value={problem} onChange={(event) => setProblem(event.target.value)} /></Field><Field label="Business value" name="project-value" full><input id="project-value" className="input" value={value} onChange={(event) => setValue(event.target.value)} /></Field><Field label="Technologies (comma separated)" name="project-tech" full><input id="project-tech" className="input" value={tech} onChange={(event) => setTech(event.target.value)} /></Field><Field label="Target date" name="project-target"><input id="project-target" type="date" className="input" value={target} onChange={(event) => setTarget(event.target.value)} /></Field></div>{error && <p className="error">{error}</p>}<div className="form-actions"><Button onClick={() => setAdding(false)}>Cancel</Button><Button variant="primary" onClick={() => void save()}>Create project</Button></div></Dialog>}
   </>;
 }
+

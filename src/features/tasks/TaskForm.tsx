@@ -1,5 +1,3 @@
-"use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -14,8 +12,8 @@ const statuses: TaskStatus[] = ["backlog", "month", "week", "today", "doing", "c
 const schema = z.object({
   title: z.string().trim().min(2, "Enter a task title."),
   description: z.string(),
-  type: z.enum(taskTypes),
-  status: z.enum(statuses),
+  type: z.enum(taskTypes as [TaskType, ...TaskType[]]),
+  status: z.enum(statuses as [TaskStatus, ...TaskStatus[]]),
   priority: z.enum(["low", "medium", "high"]),
   estimated_minutes: z.number().min(0).max(1440),
   due_date: z.string(), scheduled_date: z.string(),
@@ -62,3 +60,4 @@ export function TaskForm({ onClose, task, initialStatus = "backlog", initialTitl
     <Field label="Goal" name="task-goal" full><select id="task-goal" className="select" {...register("goal_id")}><option value="">None</option>{data.goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></Field>
   </div>{serverError && <p className="error">{serverError}</p>}<div className="form-actions"><Button type="button" onClick={onClose}>Cancel</Button><Button variant="primary" disabled={saving} type="submit">{saving ? "Saving…" : task ? "Save task" : "Create task"}</Button></div></form></Dialog>;
 }
+

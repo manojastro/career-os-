@@ -26,3 +26,4 @@ export function assessRequirements(names: string[], data: AppData): JobGap[] {
     return { name, assessment, evidence };
   });
 }
+

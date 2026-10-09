@@ -1,9 +1,7 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "@/lib/router-compat";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { LayoutDashboard, CalendarDays, CalendarRange, ListTodo, Flag, Layers3, FolderKanban, Users, MessagesSquare, BriefcaseBusiness, NotebookPen, Sparkles, Ellipsis, Settings2, PanelLeftClose, PanelLeftOpen, Search, Plus, Menu, Sun, Moon } from "lucide-react";
+import { useRouter } from "@/lib/router-compat";
+import { LayoutDashboard, CalendarDays, CalendarRange, ListTodo, Flag, Layers3, FolderKanban, Users, MessagesSquare, BriefcaseBusiness, NotebookPen, Sparkles, Ellipsis, Settings2, GraduationCap, Archive, Activity, PanelLeftClose, PanelLeftOpen, Search, Plus, Menu, Sun, Moon } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "./ui";
 import { CaptureDialog } from "./CaptureDialog";
@@ -21,13 +19,16 @@ const NAV = [
   { slug: "projects", label: "Projects", icon: FolderKanban, href: "/projects" },
   { slug: "networking", label: "Networking", icon: Users, href: "/networking" },
   { slug: "interviews", label: "Interview Prep", icon: MessagesSquare, href: "/interviews" },
-  { slug: "jobs", label: "Job Applications", icon: BriefcaseBusiness, href: "/jobs" },
+  { slug: "jobs", label: "Jobs & Applications", icon: BriefcaseBusiness, href: "/jobs" },
+  { slug: "learning", label: "Learning", icon: GraduationCap, href: "/learning" },
+  { slug: "vault", label: "Vault", icon: Archive, href: "/vault" },
+  { slug: "agent", label: "Agent Activity", icon: Activity, href: "/agent" },
   { slug: "daily-log", label: "Daily Log", icon: NotebookPen, href: "/daily-log" },
   { slug: "copilot", label: "AI Copilot", icon: Sparkles, href: "/copilot" },
 ];
 
 export function Workspace({ section }: { section: string }) {
-  const { loading, error, user, hosted } = useStore();
+  const { loading, error, user, hosted, exitDemo } = useStore();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -76,7 +77,7 @@ export function Workspace({ section }: { section: string }) {
       <nav aria-label="Main navigation">{NAV.map((item) => { const Icon = item.icon; return <Link key={item.slug} href={item.href} className={`nav-link ${section === item.slug ? "active" : ""}`} title={item.label} onClick={() => setMobileMenu(false)}><Icon size={17} strokeWidth={1.8} />{!collapsed && <span>{item.label}</span>}</Link>; })}</nav>
       <div className="sidebar-bottom"><Link href="/more" className={`nav-link ${section === "more" ? "active" : ""}`} title="More"><Ellipsis size={17} />{!collapsed && "More"}</Link><Link href="/settings" className={`nav-link ${section === "settings" ? "active" : ""}`} title="Settings"><Settings2 size={17} />{!collapsed && "Settings"}</Link><button className="collapse-button" onClick={() => { const next = !collapsed; setCollapsed(next); localStorage.setItem("career-os-sidebar", next ? "collapsed" : "expanded"); }} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}{!collapsed && "Collapse"}</button></div>
     </aside>
-    <div className="main-area"><header className="topbar"><div className="topbar-left"><button className="btn btn-quiet btn-icon mobile-menu-button" aria-label="Open menu" onClick={() => setMobileMenu(!mobileMenu)}><Menu size={19} /></button><span className="crumb">Workspace</span><span className="muted topbar-separator">/</span><span className="topbar-title small">{current?.label ?? (section === "more" ? "More" : "Settings")}</span>{!hosted && <span className="badge blue">Demo</span>}</div><div className="topbar-right"><button className="topbar-search" onClick={() => setSearch(true)}><Search size={15} /><span>Search everything</span><span className="kbd">/</span></button><Button variant="primary" onClick={() => setCapture(true)}><Plus size={15} /><span className="hide-mobile">Quick capture</span></Button><button className="btn btn-quiet btn-icon" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={changeTheme}>{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</button></div></header>
+    <div className="main-area"><header className="topbar"><div className="topbar-left"><button className="btn btn-quiet btn-icon mobile-menu-button" aria-label="Open menu" onClick={() => setMobileMenu(!mobileMenu)}><Menu size={19} /></button><span className="crumb">Workspace</span><span className="muted topbar-separator">/</span><span className="topbar-title small">{current?.label ?? (section === "more" ? "More" : "Settings")}</span>{!hosted && <><span className="badge blue">Demo</span><button className="link small" style={{ border: 0, background: "none" }} onClick={() => { exitDemo(); router.push("/login"); }}>Create account / Sign in</button></>}</div><div className="topbar-right"><button className="topbar-search" onClick={() => setSearch(true)}><Search size={15} /><span>Search everything</span><span className="kbd">/</span></button><Button variant="primary" onClick={() => setCapture(true)}><Plus size={15} /><span className="hide-mobile">Quick capture</span></Button><button className="btn btn-quiet btn-icon" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={changeTheme}>{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</button></div></header>
       {error && <div className="alert" style={{ margin: "16px 30px 0" }}>{error}</div>}
       <main className="content"><PageRouter section={section} openCapture={() => setCapture(true)} openTask={() => setNewTask(true)} /></main>
     </div>
@@ -84,3 +85,4 @@ export function Workspace({ section }: { section: string }) {
     {capture && <CaptureDialog onClose={() => setCapture(false)} />}{search && <SearchDialog onClose={() => setSearch(false)} />}{newTask && <TaskForm initialStatus={section === "today" ? "today" : "backlog"} onClose={() => setNewTask(false)} />}
   </div>;
 }
+
