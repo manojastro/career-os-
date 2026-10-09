@@ -1,5 +1,7 @@
 "use client";
 
+import { TodayLearningCard } from "@/features/learning-manager/LearningManager";
+
 import Link from "next/link";
 import { ArrowRight, Play, AlertCircle } from "lucide-react";
 import { Badge, Button, Empty, PageHeading, Progress, Section, dateLabel, minutesLabel } from "@/components/ui";
@@ -23,7 +25,7 @@ export function DashboardPage({ openCapture }: { openCapture: () => void }) {
 
   return <><PageHeading title="Your career, in motion" subtitle={`${displayDate} · Focus on what moves the work forward.`}><Button onClick={openCapture}>Capture something</Button><Link className="btn btn-primary" href="/today">Open Today <ArrowRight size={14} /></Link></PageHeading>
     <div className="summary"><div className="summary-item"><span>Goal progress</span><strong>{totalProgress}%</strong><em>linked work</em></div><div className="summary-item"><span>Planned this week</span><strong>{minutesLabel(week.planned_minutes)}</strong></div><div className="summary-item"><span>Actual this week</span><strong>{minutesLabel(week.actual_minutes)}</strong></div><div className="summary-item"><span>Completed this week</span><strong>{week.completed}</strong><em>tasks</em></div><div className="summary-item"><span>Needs attention</span><strong>{overdue.length + followups.length}</strong><em>items</em></div></div>
-    <div className="grid-main"><div className="stack">
+    <div className="grid-main"><div className="stack"><TodayLearningCard />
       <Section title="Today's focus" meta={`${today.length} priorities`} action={<div className="row">{today[0] && <Button variant="primary" onClick={() => start(today[0])}><Play size={14} />Start focus</Button>}<Link className="btn" href="/today">View plan <ArrowRight size={13} /></Link></div>}>
         {today.length ? today.map((task) => <TaskRow key={task.id} task={task} compact />) : <Empty title="Today is open" detail="Move a task into Today to make a deliberate plan." />}
       </Section>
