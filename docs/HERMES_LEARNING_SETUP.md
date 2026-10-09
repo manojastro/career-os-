@@ -41,8 +41,8 @@ Keep automation paused until one real roundtrip passes: eligible topic → persi
 ## Current external blockers
 
 - Runtime installed; gateway remains stopped and job paused pending activation. A Windows reboot/logon supervisor is not yet configured or verified.
-- Telegram bot getMe succeeded for `manoj_career_compass_bot`; one recent private /start established the local sender/destination. Server fingerprint and actual learning roundtrip remain activation checks. The token pasted in chat should be rotated afterward using secure configuration.
-- Local bearer token is stored privately. The existing server AGENT_TOKEN_SHA256 secret requires updating in Lovable's Secrets UI; the connector cannot overwrite it. Set TELEGRAM_OWNER_ID_SHA256 after the real owner sender ID is established.
+- Telegram bot getMe succeeded for `manoj_career_compass_bot`; one recent private /start established the local sender/destination, and TELEGRAM_OWNER_ID_SHA256 was created securely in Lovable. The learning roundtrip remains unverified. The token pasted in chat should be rotated afterward using secure configuration.
+- Local bearer token is stored privately. The existing server AGENT_TOKEN_SHA256 secret requires updating in Lovable's Secrets UI; the connector cannot overwrite it.
 - Complete guide: linked document currently ends at V-6, despite listing later volumes.
 
 These are operational checks, independent of mocked adapter tests. Keep the UI status truthful until they pass.
