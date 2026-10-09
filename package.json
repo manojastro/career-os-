@@ -20,7 +20,7 @@
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "lucide-react": "^1.47.0",
-    "next": "16.3.5",
+    "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.88.0",
@@ -29,13 +29,14 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.20.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.1"

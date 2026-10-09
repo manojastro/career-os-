@@ -1,0 +1,30 @@
+﻿AI Career Transition Learning Guide
+Concepts | Projects
+
+Quick Reference Contents
+* Volume I: Orientation and Learning Strategy
+* Volume II: Software Engineering Foundations (II-1 to II-3)
+* Volume V: Agents and Agentic Systems (V-1 to V-2)
+
+5. Learning Priorities (MUST, SHOULD, OPTIONAL)
+* MUST — production working depth: Python, Pydantic, FastAPI, agent state/memory/harness. Rule: Full coverage.
+* SHOULD — working depth: MCP, Redis, Kubernetes. Rule: Clear explanation.
+* OPTIONAL — awareness: GraphRAG, advanced multi-agent, A2A. Rule: Know when.
+
+Volume I: Orientation and Learning Strategy
+Some orientation text.
+Volume II: Software Engineering Foundations
+II-1: Python for Production AI
+* Identity: Using Python as a typed backend language.
+* Lab: Build a typed service with tests.
+* Completion: Tests pass and README runs.
+* Interview Mastery: Routers, services, adapters.
+II-2: Pydantic and Structured Data
+* Identity: Runtime validation at boundaries.
+II-3: Kubernetes Basics
+* Identity: Container orchestration.
+Volume V: Agents and Agentic Systems
+V-1: Workflows vs Agents and the Harness Contract
+* Identity: When to use an agent.
+V-2: Multi-Agent Systems and A2A (Secondary)
+* Identity: Coordination overhead.
