@@ -14,7 +14,7 @@ Local evidence is recorded in docs/CAREER-OS-PRODUCTION-READINESS.md and the rel
 - [x] Earlier audit reconciled; actionable high-priority local defects repaired
 - [x] Isolated tests, browser verification, types, build, lint baseline comparison and dependency audit
 - [x] Eleven required documents, full coverage matrix and 25 live test procedures prepared
-- [ ] GitHub review branch push and draft PR (record outcome after the tool succeeds)
+- [x] GitHub review branch pushed; draft PR #2 created against the TanStack base and attached to this task
 - [ ] Verified production source-transfer/build runtime and backup/isolated restoration
 - [ ] Explicit final owner migration/publication/plugin activation approval
 - [ ] Deployed-source/schema/plugin parity and 25 authorized live workflows

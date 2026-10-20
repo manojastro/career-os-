@@ -102,7 +102,7 @@ Artifacts are local and ignored under test-artifacts. They contain synthetic fix
 
 Review branch: `codex/full-telegram-control`. PR base: `codex/lovable-learning-manager`. Do not target the unrelated Next.js main branch.
 
-Application source commit: `105e05ed638fe4b357a2c3e62b878999097dd740`; initial control implementation commit: `2a161ee`. Final documentation commits and remote/PR outcome are appended after successful delivery. A Git push does not prove Lovable publication.
+Application source commit: `105e05ed638fe4b357a2c3e62b878999097dd740`; initial control implementation commit: `2a161ee`. Documentation commit: `f3e8f43`. Review branch push succeeded. [Draft PR #2](https://github.com/manojastro/career-os-/pull/2) is open against `codex/lovable-learning-manager` and attached to this task. The final documentation-only delivery receipt follows on the same branch; use the PR current head as the exact release candidate. No merge was performed. A Git push does not prove Lovable publication.
 
 ## I. Deployment readiness
 
