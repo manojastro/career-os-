@@ -1,7 +1,7 @@
 # Career Compass Agent API
 
 Base URL: `https://career-os-manoj.lovable.app` (preview builds use the preview host).
-All endpoints are JSON, `Cache-Control: no-store`, outbound-polled by the Linux worker.
+All endpoints are JSON, `Cache-Control: no-store`, outbound-polled by the configured Hermes worker (the current installation is Windows).
 
 ## Authentication
 - Header: `Authorization: Bearer <token>` (32–512 chars, long random string).

@@ -5,7 +5,13 @@ import { useStore } from "@/lib/store";
 import { browserSupabase } from "@/lib/supabase";
 import { aiHeaders } from "@/lib/ai-headers";
 import { useFocus } from "@/features/focus/FocusProvider";
-import { selectCandidates, zonedParts, addDays, isValidTimeZone, DEFAULT_TZ } from "@/lib/learning/engine";
+import {
+  selectCandidates,
+  zonedParts,
+  addDays,
+  isValidTimeZone,
+  DEFAULT_TZ,
+} from "@/lib/learning/engine";
 import { ist } from "@/features/agent/agentData";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -458,15 +464,16 @@ export function LearningPathSection() {
                       {t.priority}
                       {t.priority_source === "inferred" ? " (inferred)" : ""}
                     </Badge>{" "}
-                    {pre.length ? `after ${pre.join(", ")}` : "no prerequisite"}{" "}
-                    ·{" "}
+                    {pre.length ? `after ${pre.join(", ")}` : "no prerequisite"} ·{" "}
                     {done
                       ? "completed (evidence: task)"
                       : assigned
                         ? `assigned ${assigned.assignment_date} · ${assigned.status}`
                         : "not assigned"}
                     {t.removed_at ? " · removed from latest guide" : ""}
-                    {b ? ` · baseline: ${b.basis === "evidence" ? "evidence-backed" : "manual"}` : ""}
+                    {b
+                      ? ` · baseline: ${b.basis === "evidence" ? "evidence-backed" : "manual"}`
+                      : ""}
                   </div>
                   <TopicDetail topicId={t.id} prerequisites={pre as string[]} />
                   {sug && sug.level !== "Not Started" && (
@@ -514,7 +521,9 @@ function TopicDetail({ topicId, prerequisites }: { topicId: string; prerequisite
     if (next && !row) {
       const { data, error } = await browserSupabase()!
         .from("curriculum_topics")
-        .select("description,body,practical_exercise,completion_criteria,interview_notes,source_reference,recommended_minutes")
+        .select(
+          "description,body,practical_exercise,completion_criteria,interview_notes,source_reference,recommended_minutes",
+        )
         .eq("id", topicId)
         .maybeSingle();
       if (error || !data) setErr("Could not load chapter detail.");
@@ -529,22 +538,48 @@ function TopicDetail({ topicId, prerequisites }: { topicId: string; prerequisite
   );
   return (
     <div className="micro">
-      <button type="button" className="link micro" aria-expanded={open} onClick={() => void toggle()}>
+      <button
+        type="button"
+        className="link micro"
+        aria-expanded={open}
+        onClick={() => void toggle()}
+      >
         {open ? "Hide chapter detail" : "Show chapter detail"}
       </button>
       {open && (
-        <div className="stack" style={{ gap: 4, marginTop: 4, padding: 8, border: "1px solid var(--border)", borderRadius: 6 }}>
+        <div
+          className="stack"
+          style={{
+            gap: 4,
+            marginTop: 4,
+            padding: 8,
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+          }}
+        >
           {err && <div className="error">{err}</div>}
           {!row && !err && <div className="muted">Loading…</div>}
           {row && (
             <>
               {field("Source", row.source_reference, "No source reference in the guide")}
               {field("Practical exercise", row.practical_exercise, "Not stated in the guide")}
-              {field("Completion criteria", row.completion_criteria, "Not stated in the guide (a labeled inference is used when planning)")}
+              {field(
+                "Completion criteria",
+                row.completion_criteria,
+                "Not stated in the guide (a labeled inference is used when planning)",
+              )}
               {field("Interview notes", row.interview_notes, "Not stated in the guide")}
               {field("Prerequisites", prerequisites.join(", "), "None")}
               <div className="semibold">Raw chapter text (from the guide, unedited)</div>
-              <pre style={{ whiteSpace: "pre-wrap", maxHeight: 320, overflow: "auto", margin: 0, fontSize: 12 }}>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  maxHeight: 320,
+                  overflow: "auto",
+                  margin: 0,
+                  fontSize: 12,
+                }}
+              >
                 {row.body || row.description || "The guide has no body text for this chapter."}
               </pre>
             </>
@@ -563,7 +598,9 @@ export function DailyLogLearning({ date }: { date: string }) {
     (a) =>
       a.assignment_date === date ||
       d.feedback.some(
-        (f) => f.assignment_id === a.id && zonedParts(new Date(f.created_at), d.prefs?.timezone ?? DEFAULT_TZ).date === date,
+        (f) =>
+          f.assignment_id === a.id &&
+          zonedParts(new Date(f.created_at), d.prefs?.timezone ?? DEFAULT_TZ).date === date,
       ),
   );
   return (
@@ -675,9 +712,12 @@ export function LearningSettings() {
           paused: form.paused,
           timezone: form.timezone ?? DEFAULT_TZ,
         })
-        .eq("user_id", user!.id);
+        .eq("user_id", user!.id)
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
-      await browserSupabase()!
+      window.dispatchEvent(new Event("career-os-preferences-changed"));
+      const queued = await browserSupabase()!
         .from("agent_commands")
         .insert({
           user_id: user!.id,
@@ -687,7 +727,9 @@ export function LearningSettings() {
           source: "user",
           provenance: {},
         });
-      return "Saved. The agent picks this up on its next poll.";
+      return queued.error
+        ? "Settings saved, but the optional agent refresh request could not be queued. Do not repeat the saved change."
+        : "Settings saved. Calendar dates use this timezone. Delivery still requires an enabled, verified worker.";
     });
   const report = d.version?.report ?? {};
   const seen = d.prefs?.hermes_last_seen_at;
@@ -702,7 +744,11 @@ export function LearningSettings() {
   return (
     <Section title="AI learning manager">
       <div className="section-body form-grid">
-        <Field label="Learning guide URL (Google Docs: shared or published-to-web link)" name="lm-url" full>
+        <Field
+          label="Learning guide URL (Google Docs: shared or published-to-web link)"
+          name="lm-url"
+          full
+        >
           <input id="lm-url" className="input" value={form.guide_url} onChange={set("guide_url")} />
         </Field>
         <div className="full small">
@@ -776,7 +822,17 @@ export function LearningSettings() {
             onChange={set("timezone")}
           />
           <datalist id="lm-tz-list">
-            {["Asia/Kolkata", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles", "Asia/Singapore", "Asia/Dubai", "Australia/Sydney"].map((z) => (
+            {[
+              "Asia/Kolkata",
+              "UTC",
+              "Europe/London",
+              "Europe/Berlin",
+              "America/New_York",
+              "America/Los_Angeles",
+              "Asia/Singapore",
+              "Asia/Dubai",
+              "Australia/Sydney",
+            ].map((z) => (
               <option key={z} value={z} />
             ))}
           </datalist>
@@ -910,4 +966,3 @@ export function LearningSettings() {
     </Section>
   );
 }
-

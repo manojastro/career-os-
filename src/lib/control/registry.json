@@ -1,0 +1,5474 @@
+{
+  "activity_log": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "entity_type": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "entity_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "action": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "summary": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "occurred_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "metadata": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "agent_commands": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "command": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": [
+          "run_now",
+          "pause",
+          "refresh_preferences",
+          "reprocess_document",
+          "ping_learning_manager",
+          "send_test_telegram"
+        ],
+        "editable": true
+      },
+      "workflow": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "enum": [
+          "all",
+          "orchestrator",
+          "study_coach",
+          "project_builder",
+          "job_hunter",
+          "networking_advisor",
+          "interview_coach",
+          "certification_event_scout",
+          "vault_intake"
+        ]
+      },
+      "payload": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["cancelled"],
+        "editable": true
+      },
+      "idempotency_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "claimed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "result": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update"]
+  },
+  "agent_notifications": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "body": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "channel": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["in_app", "email", "telegram", "other"],
+        "editable": true
+      },
+      "delivery_status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["pending", "delivered", "failed"],
+        "editable": true
+      },
+      "delivered_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "read_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "agent_runs": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "workflow": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "idempotency_key": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["running", "succeeded", "failed", "skipped"],
+        "editable": false
+      },
+      "started_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "finished_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "next_run_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "error": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "usage": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "delivery": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "audit_events": {
+    "owner": "user_id",
+    "softDelete": false,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "actor": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["user", "agent", "system"],
+        "editable": false
+      },
+      "action": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "entity_type": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "entity_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "detail": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "career_preferences": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "target_roles": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "locations": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "work_types": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "min_salary": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "avoid_companies": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "focus_skills": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "briefing_time": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "timezone": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "agent_paused": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "paused_workflows": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "study_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "research_sources": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "companies": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "name": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "website": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "industry": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "verified_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["tracking", "target", "avoid", "archived"],
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "contacts": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "name": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "company": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "role": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "linkedin_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "email": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "location": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "relationship_stage": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": [
+          "New",
+          "Connected",
+          "Conversation Started",
+          "Active",
+          "Warm",
+          "Recruiter",
+          "Mentor",
+          "Archived"
+        ],
+        "editable": true
+      },
+      "topics": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "date_connected": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "last_interaction": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "next_followup": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "curriculum_prerequisites": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "topic_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "curriculum_topics",
+        "editable": false
+      },
+      "prerequisite_topic_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "curriculum_topics",
+        "editable": false
+      },
+      "basis": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["sequence_inferred", "guide_explicit", "manual"],
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "curriculum_sources": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "url": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "document_id": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["never_synced", "ok", "incomplete", "failed"],
+        "editable": false
+      },
+      "active_version_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "curriculum_versions",
+        "editable": false
+      },
+      "last_checked_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "last_synced_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "last_error": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "curriculum_topics": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "source_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "curriculum_sources",
+        "editable": false
+      },
+      "stable_topic_id": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "volume": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "volume_title": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "description": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "parent_topic_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "curriculum_topics",
+        "editable": false
+      },
+      "priority": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["MUST", "SHOULD", "OPTIONAL"],
+        "editable": false
+      },
+      "priority_source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["guide_label", "inferred"],
+        "editable": false
+      },
+      "sequence": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "recommended_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "practical_exercise": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "completion_criteria": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "interview_notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "body": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "source_reference": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "content_hash": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "first_version_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "curriculum_versions",
+        "editable": false
+      },
+      "last_version_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "curriculum_versions",
+        "editable": false
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": false
+      },
+      "skill_topic_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skill_topics",
+        "editable": false
+      },
+      "removed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "curriculum_versions": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "source_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "curriculum_sources",
+        "editable": false
+      },
+      "content_hash": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["validated", "incomplete", "failed", "unchanged"],
+        "editable": false
+      },
+      "applied": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "topic_count": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "report": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "daily_logs": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "log_date": {
+        "type": "date",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "journal": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "events": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "organizer": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "starts_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "location": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "verified_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "summary": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["suggested", "saved", "registered_manually", "attended", "dismissed"],
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "evidence": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "description": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": true
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "projects",
+        "editable": true
+      },
+      "goal_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "goals",
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "feedback": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "target_type": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": [
+          "recommendation",
+          "job_lead",
+          "study_task",
+          "project_task",
+          "outreach",
+          "event",
+          "uncertain_claim",
+          "source_document",
+          "notification",
+          "general"
+        ],
+        "editable": true
+      },
+      "target_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "action": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["done", "save", "dismiss", "useful", "not_useful", "note"],
+        "editable": true
+      },
+      "note": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "focus_sessions": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": true,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "task_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "tasks",
+        "editable": false
+      },
+      "started_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "ended_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "duration_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "note": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "followups": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "contact_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "contacts",
+        "editable": true
+      },
+      "due_date": {
+        "type": "date",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "note": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text", "set_completed"]
+  },
+  "goals": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "description": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "goal_type": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["career", "quarter", "monthly"],
+        "editable": true
+      },
+      "parent_goal_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "goals",
+        "editable": true
+      },
+      "target_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["active", "completed", "paused"],
+        "editable": true
+      },
+      "reason": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "success_criteria": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "inbox_items": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "content": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["unprocessed", "task", "note", "resource", "idea"],
+        "editable": true
+      },
+      "archived": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "interview_practice": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "question_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "interview_questions",
+        "editable": true
+      },
+      "practiced_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "confidence": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "answer": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "weaknesses": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "recommendation_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "recommendations",
+        "editable": true
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "interview_questions": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "question": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "answer": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "category": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "difficulty": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["Easy", "Medium", "Hard"],
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["New", "Learning", "Practiced", "Strong"],
+        "editable": true
+      },
+      "confidence": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": true
+      },
+      "last_practiced": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "practice_count": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "recommendation_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "recommendations",
+        "editable": true
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "interview_stories": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "situation": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "task": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "action": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "result": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "lessons": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "projects",
+        "editable": true
+      },
+      "tags": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "job_applications": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "company": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "role": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "location": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "work_type": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "job_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "job_description": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "salary_range": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "date_found": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "date_applied": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": [
+          "Saved",
+          "Planning to Apply",
+          "Applied",
+          "Recruiter Contact",
+          "Screening",
+          "Technical Interview",
+          "Hiring Manager",
+          "Final Round",
+          "Offer",
+          "Rejected",
+          "Withdrawn"
+        ],
+        "editable": true
+      },
+      "recruiter": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "recruiter_linkedin": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "resume_version": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "followup_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "priority": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["low", "medium", "high"],
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "job_interviews": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "application_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "job_applications",
+        "editable": true
+      },
+      "stage": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "scheduled_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "job_leads": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "company_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "companies",
+        "editable": true
+      },
+      "company": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "location": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "work_type": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "salary_range": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "official_url": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "verified_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "posted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "summary": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "fit_notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "fit_is_inference": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "application_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "job_applications",
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["new", "verified", "saved", "applied", "dismissed", "expired"],
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "job_skill_requirements": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "application_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "job_applications",
+        "editable": true
+      },
+      "skill_name": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "requirement_type": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": true
+      },
+      "assessment": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "learning_assignments": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": true,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "topic_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "curriculum_topics",
+        "editable": false
+      },
+      "task_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "tasks",
+        "editable": false
+      },
+      "assignment_date": {
+        "type": "date",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": [
+          "planned",
+          "delivered",
+          "completed",
+          "partial",
+          "not_started",
+          "rescheduled",
+          "cancelled"
+        ],
+        "editable": false
+      },
+      "help_requested": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "planned_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "recorded_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "plan": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "rationale": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "practical_outcome": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "completion_criteria": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "progress_notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "is_inference": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["app", "agent"],
+        "editable": false
+      },
+      "idempotency_key": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "request_payload": {
+        "type": "jsonb",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "learning_baselines": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "topic_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "curriculum_topics",
+        "editable": true
+      },
+      "level": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["Not Started", "Familiar", "Learning", "Practiced", "Applied"],
+        "editable": true
+      },
+      "basis": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["manual"],
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete"]
+  },
+  "learning_feedback": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": true,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "assignment_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "learning_assignments",
+        "editable": false
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["completed", "partial", "not_started", "reschedule", "help", "minutes"],
+        "editable": false
+      },
+      "channel": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["app", "telegram", "agent"],
+        "editable": false
+      },
+      "raw_text": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "minutes": {
+        "type": "int4",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "new_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "idempotency_key": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "result": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "request_payload": {
+        "type": "jsonb",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "learning_preferences": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "guide_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "sync_time": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "morning_time": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "evening_time": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "timezone": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "daily_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "weekly_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "paused": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true,
+        "confirm": true
+      },
+      "baseline_completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "hermes_last_seen_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "telegram_status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["unknown", "sent_ok", "send_failed", "reply_ok"],
+        "editable": false
+      },
+      "telegram_status_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete"]
+  },
+  "learning_sessions": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": true,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": false
+      },
+      "task_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "tasks",
+        "editable": false
+      },
+      "minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "learned": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "occurred_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "focus_session_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "focus_sessions",
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "milestones": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "goal_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "goals",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "due_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["pending", "in_progress", "completed"],
+        "editable": true
+      },
+      "success_criteria": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "mock_interviews": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "occurred_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "feedback": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "network_interactions": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "contact_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "contacts",
+        "editable": true
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "occurred_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "notes": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "content": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "entity_type": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "entity_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "tags": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "notifications": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "body": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "read_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "outreach": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "contact_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "contacts",
+        "editable": true
+      },
+      "recipient": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "channel": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["linkedin", "email", "other"],
+        "editable": true
+      },
+      "subject": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "draft": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "reason": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["draft", "approved", "sent_manually", "responded", "saved", "dismissed"],
+        "editable": true
+      },
+      "is_inference": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "sent_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "response_received_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "response_notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "verified_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "planner_blocks": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "task_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "tasks",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "block_date": {
+        "type": "date",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "start_time": {
+        "type": "time",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "end_time": {
+        "type": "time",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "profiles": {
+    "owner": "id",
+    "softDelete": false,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "display_name": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "career_target": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "weekly_hours": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "onboarded_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["update", "edit_text"]
+  },
+  "project_decisions": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "projects",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "context": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "decision": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "project_milestones": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "projects",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "due_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text", "set_completed"]
+  },
+  "project_tasks": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "projects",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["milestone", "task", "evidence"],
+        "editable": true
+      },
+      "detail": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "evidence_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "due_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["todo", "doing", "done", "saved", "dismissed"],
+        "editable": true
+      },
+      "is_inference": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "projects": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "name": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "description": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "problem": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "business_value": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "architecture": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "technologies": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "github_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "deployment_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["Idea", "Planning", "Building", "Testing", "Deployed", "Archived"],
+        "editable": true
+      },
+      "start_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "target_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "recommendations": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["top_priority", "briefing", "action", "insight", "interview"],
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "body": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "priority": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "briefing_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "is_inference": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "verified_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["new", "done", "saved", "dismissed"],
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "document_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "source_documents",
+        "editable": true
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "resources": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source_type": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": true
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "projects",
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["Inbox", "To Review", "Learning", "Completed", "Archived"],
+        "editable": true
+      },
+      "priority": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["low", "medium", "high"],
+        "editable": true
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "scheduler_runs": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "job": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["curriculum_sync", "morning_plan", "evening_check"],
+        "editable": false
+      },
+      "run_date": {
+        "type": "date",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["claimed", "succeeded", "failed", "skipped"],
+        "editable": false
+      },
+      "catch_up": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "detail": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "started_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "finished_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "lease_until": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "attempt": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "attempt_token": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "skill_topics": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "skills",
+        "editable": true
+      },
+      "parent_topic_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skill_topics",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["Not Started", "Learning", "Practicing", "Applied", "Interview Ready"],
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "skills": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "name": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["Not Started", "Learning", "Practicing", "Applied", "Interview Ready"],
+        "editable": true
+      },
+      "category": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "knowledge": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "hands_on": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "project_proof": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "production": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "interview": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "last_activity": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "source_documents": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": [
+          "resume",
+          "job_description",
+          "certificate",
+          "article",
+          "note",
+          "transcript",
+          "other"
+        ],
+        "editable": true
+      },
+      "url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "storage_path": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "summary": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": [
+          "new",
+          "pending",
+          "processing",
+          "processed",
+          "action_needed",
+          "failed",
+          "archived"
+        ],
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "agent_summary": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "processed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "study_history": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": true,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "study_task_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "study_tasks",
+        "editable": false
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": false
+      },
+      "minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "notes": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "occurred_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "study_tasks": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "detail": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": true
+      },
+      "resource_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "estimated_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "due_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "priority": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["low", "medium", "high"],
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["queued", "in_progress", "done", "saved", "dismissed"],
+        "editable": true
+      },
+      "is_inference": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "consolidated_task_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "tasks",
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "task_dependencies": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "task_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "tasks",
+        "editable": true
+      },
+      "depends_on_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "tasks",
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete"]
+  },
+  "task_subtasks": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "task_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "references": "tasks",
+        "editable": true
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text", "set_completed"]
+  },
+  "tasks": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "title": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "description": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "type": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": [
+          "Learn",
+          "Build",
+          "Practice",
+          "Interview",
+          "Network",
+          "Apply",
+          "Research",
+          "Document",
+          "Admin"
+        ],
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["backlog", "month", "week", "today", "doing", "completed"],
+        "editable": true
+      },
+      "priority": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["low", "medium", "high"],
+        "editable": true
+      },
+      "estimated_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "actual_minutes": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "due_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "scheduled_date": {
+        "type": "date",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "scheduled_start": {
+        "type": "time",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "scheduled_end": {
+        "type": "time",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "skill_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skills",
+        "editable": true
+      },
+      "project_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "projects",
+        "editable": true
+      },
+      "goal_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "goals",
+        "editable": true
+      },
+      "milestone_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "milestones",
+        "editable": true
+      },
+      "application_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "job_applications",
+        "editable": true
+      },
+      "contact_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "contacts",
+        "editable": true
+      },
+      "completed_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "sort_order": {
+        "type": "int4",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "tags": {
+        "type": "_text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "recurrence": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "evidence_required": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "skill_topic_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "skill_topics",
+        "editable": true
+      },
+      "repeat_child_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": false,
+        "references": "tasks"
+      }
+    },
+    "operations": ["create", "update", "delete", "record_time", "edit_text", "set_recurrence"]
+  },
+  "telegram_message_map": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": false,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "assignment_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "learning_assignments",
+        "editable": false
+      },
+      "kind": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["morning_plan", "evening_check", "test", "reply", "help"],
+        "editable": false
+      },
+      "direction": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["outbound", "inbound"],
+        "editable": false
+      },
+      "chat_ref": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "message_id": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "delivery_status": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "enum": ["pending", "sent", "failed", "unknown", "received"],
+        "editable": false
+      },
+      "error": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "idempotency_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "reply_to_message_id": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "reservation_token": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "reserved_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "finished_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "reconciled": {
+        "type": "bool",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": []
+  },
+  "uncertain_claims": {
+    "owner": "user_id",
+    "softDelete": true,
+    "writable": true,
+    "special": false,
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": true,
+        "editable": false
+      },
+      "claim": {
+        "type": "text",
+        "nullable": false,
+        "required": true,
+        "editable": true
+      },
+      "context": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "source_url": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "verified_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": true
+      },
+      "confidence": {
+        "type": "int2",
+        "nullable": false,
+        "required": false,
+        "editable": true
+      },
+      "document_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "source_documents",
+        "editable": true
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["open", "confirmed", "rejected", "dismissed"],
+        "editable": true
+      },
+      "dedupe_key": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "run_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "references": "agent_runs",
+        "editable": false
+      },
+      "source": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "enum": ["user", "agent", "import"],
+        "editable": false
+      },
+      "provenance": {
+        "type": "jsonb",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "deleted_at": {
+        "type": "timestamptz",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      }
+    },
+    "operations": ["create", "update", "delete", "edit_text"]
+  },
+  "control_dev_requests": {
+    "owner": "user_id",
+    "softDelete": false,
+    "writable": false,
+    "special": false,
+    "operations": [],
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "user_id": {
+        "type": "uuid",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "request": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "status": {
+        "type": "text",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "branch": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "review_url": {
+        "type": "text",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "verification": {
+        "type": "jsonb",
+        "nullable": true,
+        "required": false,
+        "editable": false
+      },
+      "created_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      },
+      "updated_at": {
+        "type": "timestamptz",
+        "nullable": false,
+        "required": false,
+        "editable": false
+      }
+    }
+  }
+}

@@ -19,6 +19,12 @@ dist-ssr
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+__pycache__/
+test-artifacts/
+control-lint.json
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*

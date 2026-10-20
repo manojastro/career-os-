@@ -28,8 +28,10 @@ import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as VaultRouteImport } from './routes/vault'
+import { Route as ApiVersionRouteImport } from './routes/api/version'
 import { Route as ApiAgentCommandsRouteImport } from './routes/api/agent/commands'
 import { Route as ApiAgentContextRouteImport } from './routes/api/agent/context'
+import { Route as ApiAgentControlRouteImport } from './routes/api/agent/control'
 import { Route as ApiAgentDocumentRouteImport } from './routes/api/agent/document'
 import { Route as ApiAgentIngestRouteImport } from './routes/api/agent/ingest'
 import { Route as ApiAiAnalyzeJdRouteImport } from './routes/api/ai/analyze-jd'
@@ -132,6 +134,11 @@ const VaultRoute = VaultRouteImport.update({
   path: '/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVersionRoute = ApiVersionRouteImport.update({
+  id: '/api/version',
+  path: '/api/version',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentCommandsRoute = ApiAgentCommandsRouteImport.update({
   id: '/api/agent/commands',
   path: '/api/agent/commands',
@@ -140,6 +147,11 @@ const ApiAgentCommandsRoute = ApiAgentCommandsRouteImport.update({
 const ApiAgentContextRoute = ApiAgentContextRouteImport.update({
   id: '/api/agent/context',
   path: '/api/agent/context',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentControlRoute = ApiAgentControlRouteImport.update({
+  id: '/api/agent/control',
+  path: '/api/agent/control',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAgentDocumentRoute = ApiAgentDocumentRouteImport.update({
@@ -193,8 +205,10 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/today': typeof TodayRoute
   '/vault': typeof VaultRoute
+  '/api/version': typeof ApiVersionRoute
   '/api/agent/commands': typeof ApiAgentCommandsRoute
   '/api/agent/context': typeof ApiAgentContextRoute
+  '/api/agent/control': typeof ApiAgentControlRoute
   '/api/agent/document': typeof ApiAgentDocumentRoute
   '/api/agent/ingest': typeof ApiAgentIngestRoute
   '/api/ai/analyze-jd': typeof ApiAiAnalyzeJdRoute
@@ -222,8 +236,10 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/today': typeof TodayRoute
   '/vault': typeof VaultRoute
+  '/api/version': typeof ApiVersionRoute
   '/api/agent/commands': typeof ApiAgentCommandsRoute
   '/api/agent/context': typeof ApiAgentContextRoute
+  '/api/agent/control': typeof ApiAgentControlRoute
   '/api/agent/document': typeof ApiAgentDocumentRoute
   '/api/agent/ingest': typeof ApiAgentIngestRoute
   '/api/ai/analyze-jd': typeof ApiAiAnalyzeJdRoute
@@ -252,8 +268,10 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/today': typeof TodayRoute
   '/vault': typeof VaultRoute
+  '/api/version': typeof ApiVersionRoute
   '/api/agent/commands': typeof ApiAgentCommandsRoute
   '/api/agent/context': typeof ApiAgentContextRoute
+  '/api/agent/control': typeof ApiAgentControlRoute
   '/api/agent/document': typeof ApiAgentDocumentRoute
   '/api/agent/ingest': typeof ApiAgentIngestRoute
   '/api/ai/analyze-jd': typeof ApiAiAnalyzeJdRoute
@@ -283,8 +301,10 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/today'
     | '/vault'
+    | '/api/version'
     | '/api/agent/commands'
     | '/api/agent/context'
+    | '/api/agent/control'
     | '/api/agent/document'
     | '/api/agent/ingest'
     | '/api/ai/analyze-jd'
@@ -312,8 +332,10 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/today'
     | '/vault'
+    | '/api/version'
     | '/api/agent/commands'
     | '/api/agent/context'
+    | '/api/agent/control'
     | '/api/agent/document'
     | '/api/agent/ingest'
     | '/api/ai/analyze-jd'
@@ -341,8 +363,10 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/today'
     | '/vault'
+    | '/api/version'
     | '/api/agent/commands'
     | '/api/agent/context'
+    | '/api/agent/control'
     | '/api/agent/document'
     | '/api/agent/ingest'
     | '/api/ai/analyze-jd'
@@ -371,8 +395,10 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   TodayRoute: typeof TodayRoute
   VaultRoute: typeof VaultRoute
+  ApiVersionRoute: typeof ApiVersionRoute
   ApiAgentCommandsRoute: typeof ApiAgentCommandsRoute
   ApiAgentContextRoute: typeof ApiAgentContextRoute
+  ApiAgentControlRoute: typeof ApiAgentControlRoute
   ApiAgentDocumentRoute: typeof ApiAgentDocumentRoute
   ApiAgentIngestRoute: typeof ApiAgentIngestRoute
   ApiAiAnalyzeJdRoute: typeof ApiAiAnalyzeJdRoute
@@ -516,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/version': {
+      id: '/api/version'
+      path: '/api/version'
+      fullPath: '/api/version'
+      preLoaderRoute: typeof ApiVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/agent/commands': {
       id: '/api/agent/commands'
       path: '/api/agent/commands'
@@ -528,6 +561,13 @@ declare module '@tanstack/react-router' {
       path: '/api/agent/context'
       fullPath: '/api/agent/context'
       preLoaderRoute: typeof ApiAgentContextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent/control': {
+      id: '/api/agent/control'
+      path: '/api/agent/control'
+      fullPath: '/api/agent/control'
+      preLoaderRoute: typeof ApiAgentControlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent/document': {
@@ -595,8 +635,10 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   TodayRoute: TodayRoute,
   VaultRoute: VaultRoute,
+  ApiVersionRoute: ApiVersionRoute,
   ApiAgentCommandsRoute: ApiAgentCommandsRoute,
   ApiAgentContextRoute: ApiAgentContextRoute,
+  ApiAgentControlRoute: ApiAgentControlRoute,
   ApiAgentDocumentRoute: ApiAgentDocumentRoute,
   ApiAgentIngestRoute: ApiAgentIngestRoute,
   ApiAiAnalyzeJdRoute: ApiAiAnalyzeJdRoute,
@@ -617,4 +659,3 @@ declare module '@tanstack/react-start' {
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
-
