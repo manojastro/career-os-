@@ -1,0 +1,26 @@
+name: career-os-control
+version: 1.0.0
+description: Owner-scoped Career OS API tools for the existing Telegram gateway.
+provides_tools:
+  - career_catalog
+  - career_context
+  - career_query
+  - career_search
+  - career_resolve
+  - career_execute
+  - career_learning
+  - career_learning_manage
+  - career_report
+  - career_export
+  - career_upload
+  - career_download
+  - career_history
+  - career_undo
+  - career_development_request
+provides_hooks:
+  - pre_gateway_dispatch
+  - pre_tool_call
+requires_env:
+  - CAREER_OS_BASE_URL
+  - CAREER_OS_AGENT_TOKEN
+  - TELEGRAM_ALLOWED_USERS
