@@ -21,7 +21,14 @@ export const registry = rawRegistry as Record<string, Entity>;
 export type Identity = { sender: string; chat: string; chat_type: string; message: string };
 export type Operation = {
   entity: string;
-  action: "create" | "update" | "delete" | "record_time" | "edit_text";
+  action:
+    | "create"
+    | "update"
+    | "delete"
+    | "record_time"
+    | "edit_text"
+    | "set_completed"
+    | "set_recurrence";
   id?: string;
   values?: Record<string, unknown>;
   ref?: string;
@@ -56,7 +63,15 @@ export function validateOperations(input: unknown): Operation[] {
       e = Object.hasOwn(registry, op.entity) ? registry[op.entity] : undefined;
     if (
       !e?.writable ||
-      !["create", "update", "delete", "record_time", "edit_text"].includes(op.action)
+      ![
+        "create",
+        "update",
+        "delete",
+        "record_time",
+        "edit_text",
+        "set_completed",
+        "set_recurrence",
+      ].includes(op.action)
     )
       throw new Error("unsupported_operation");
     if (e.operations && !e.operations.includes(op.action)) throw new Error("unsupported_operation");
@@ -73,6 +88,26 @@ export function validateOperations(input: unknown): Operation[] {
         throw new Error("invalid_reference");
     }
     const values = op.values ?? {};
+    if (op.action === "set_recurrence") {
+      if (
+        op.entity !== "tasks" ||
+        !Object.hasOwn(values, "cadence") ||
+        (values.cadence !== null &&
+          !["daily", "weekly", "monthly"].includes(String(values.cadence))) ||
+        Object.keys(values).some((k) => k !== "cadence")
+      )
+        throw new Error("invalid_recurrence");
+      return op;
+    }
+    if (op.action === "set_completed") {
+      if (
+        !["task_subtasks", "project_milestones", "followups"].includes(op.entity) ||
+        typeof values.completed !== "boolean" ||
+        Object.keys(values).some((k) => k !== "completed")
+      )
+        throw new Error("invalid_completion");
+      return op;
+    }
     if (op.action === "edit_text") {
       const field = String(values.field ?? ""),
         f = e.fields[field];

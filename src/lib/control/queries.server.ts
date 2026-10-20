@@ -177,40 +177,79 @@ export async function search(db: Db, uid: string, input: Record<string, unknown>
   )
     throw new Error("unsupported_entity");
   const results: Page[] = [];
-  for (const entity of entities)
+  const options = {
+    search: String(input.search ?? ""),
+    limit: Number(input.limit ?? 20),
+    offset: Number(input.offset ?? 0),
+    filters: input.filters ?? [],
+    sort: input.sort ?? "id",
+    direction: input.direction ?? "asc",
+  };
+  // Bound independent reads; save conversation references once after all succeed.
+  for (let start = 0; start < entities.length; start += 6)
     results.push(
-      await query(
-        db,
-        uid,
-        entity,
-        {
-          search: String(input.search ?? ""),
-          limit: Number(input.limit ?? 20),
-          offset: Number(input.offset ?? 0),
-          filters: input.filters ?? [],
-          sort: input.sort ?? "id",
-          direction: input.direction ?? "asc",
-        },
-        chat,
-      ),
+      ...(await Promise.all(
+        entities.slice(start, start + 6).map((entity) => query(db, uid, entity, options)),
+      )),
     );
   if (chat) {
-    const matches = results.filter((p) => p.rows.length);
-    if (matches.length !== 1 || matches[0].rows.length !== 1 || matches[0].has_more) {
-      const { error } = await db
-        .from("control_context")
-        .update({ entity: null, selected_id: null })
-        .eq("user_id", uid)
-        .eq("chat_ref", chat);
-      if (error) throw new Error("context_save_failed");
-    } else {
-      const { error } = await db
-        .from("control_context")
-        .update({ entity: matches[0].entity, selected_id: matches[0].rows[0].id })
-        .eq("user_id", uid)
-        .eq("chat_ref", chat);
-      if (error) throw new Error("context_save_failed");
+    const { data: prior, error: priorError } = await db
+      .from("control_context")
+      .select("lists")
+      .eq("user_id", uid)
+      .eq("chat_ref", chat)
+      .maybeSingle();
+    if (priorError) throw new Error("context_save_failed");
+    const lists = { ...savedLists(prior?.lists) };
+    const now = new Date().toISOString();
+    for (const page of results) {
+      const entity = page.entity;
+      const signature = createHash("sha256")
+        .update(
+          JSON.stringify({
+            entity,
+            search: options.search,
+            sort: options.sort,
+            direction: options.direction,
+            filters: options.filters,
+          }),
+        )
+        .digest("hex");
+      const old = lists[entity];
+      const append =
+        options.offset > 0 &&
+        old?.query_signature === signature &&
+        old.base_offset + old.record_ids.length === options.offset &&
+        Date.parse(old.updated_at) > Date.now() - 86400000;
+      const ids = append
+        ? [...old.record_ids, ...page.rows.map((r) => String(r.id))]
+        : page.rows.map((r) => String(r.id));
+      lists[entity] = {
+        record_ids: ids,
+        selected_id: ids.length === 1 ? ids[0] : null,
+        query_signature: signature,
+        base_offset: append ? old.base_offset : options.offset,
+        updated_at: now,
+      };
+      page.first_ordinal = options.offset + 1;
     }
+    const matches = results.filter((p) => p.rows.length);
+    const selected =
+      matches.length === 1 && matches[0].rows.length === 1 && !matches[0].has_more
+        ? matches[0]
+        : null;
+    const { error } = await db.from("control_context").upsert({
+      user_id: uid,
+      chat_ref: chat,
+      entity: selected?.entity ?? null,
+      selected_id: selected?.rows[0].id ?? null,
+      record_ids: [],
+      query_signature: null,
+      base_offset: 0,
+      lists,
+      updated_at: now,
+    });
+    if (error) throw new Error("context_save_failed");
   }
   return {
     results,
@@ -221,8 +260,17 @@ export async function search(db: Db, uid: string, input: Record<string, unknown>
 export async function report(db: Db, uid: string, input: Record<string, unknown>) {
   const from = String(input.from ?? "").slice(0, 10),
     to = String(input.to ?? "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to)
-    throw new Error("report_dates_required");
+  const actualDate = (value: string) => {
+    try {
+      return (
+        /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        new Date(value + "T12:00:00Z").toISOString().slice(0, 10) === value
+      );
+    } catch {
+      return false;
+    }
+  };
+  if (!actualDate(from) || !actualDate(to) || from > to) throw new Error("report_dates_required");
   const [
     tasks,
     focus,
@@ -235,6 +283,13 @@ export async function report(db: Db, uid: string, input: Record<string, unknown>
     goals,
     milestones,
     learning,
+    practice,
+    questions,
+    projectMilestones,
+    evidence,
+    activities,
+    assignments,
+    blocks,
   ] = await Promise.all(
     [
       "tasks",
@@ -248,6 +303,13 @@ export async function report(db: Db, uid: string, input: Record<string, unknown>
       "goals",
       "milestones",
       "learning_sessions",
+      "interview_practice",
+      "interview_questions",
+      "project_milestones",
+      "evidence",
+      "activity_log",
+      "learning_assignments",
+      "planner_blocks",
     ].map((e) => allRows(db, uid, e)),
   );
   const timezone = String(preferences[0]?.timezone ?? "Asia/Kolkata");
@@ -288,6 +350,15 @@ export async function report(db: Db, uid: string, input: Record<string, unknown>
   const bySkill = skills.map((s) => ({
     id: s.id,
     name: s.name,
+    current_self_assessment: {
+      knowledge: s.knowledge,
+      hands_on: s.hands_on,
+      project_proof: s.project_proof,
+      production: s.production,
+      interview: s.interview,
+    },
+    evidence_records_added: evidence.filter((e) => e.skill_id === s.id && within(e.created_at))
+      .length,
     minutes:
       ledger
         .filter((f) => tasks.find((t) => t.id === f.task_id)?.skill_id === s.id)
@@ -302,7 +373,17 @@ export async function report(db: Db, uid: string, input: Record<string, unknown>
     to,
     timezone,
     completed_tasks: completed.length,
-    planned_minutes: scheduled.reduce((n, t) => n + Number(t.estimated_minutes ?? 0), 0),
+    planned_minutes:
+      scheduled.reduce((n, t) => n + Number(t.estimated_minutes ?? 0), 0) +
+      blocks
+        .filter((b) => !b.task_id && within(b.block_date))
+        .reduce((sum, b) => {
+          const minute = (v: unknown) => {
+            const t = String(v ?? "");
+            return Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+          };
+          return sum + Math.max(0, minute(b.end_time) - minute(b.start_time));
+        }, 0),
     actual_minutes: minutes,
     focus_minutes: focusMinutes,
     legacy_standalone_learning_minutes: legacyMinutes,
@@ -314,6 +395,9 @@ export async function report(db: Db, uid: string, input: Record<string, unknown>
       id: p.id,
       name: p.name,
       progress: projectProgress(progressData, String(p.id)),
+      milestones: projectMilestones.filter((m) => m.project_id === p.id).length,
+      completed_milestones: projectMilestones.filter((m) => m.project_id === p.id && m.completed_at)
+        .length,
     })),
     goal_progress: goals.map((g) => ({
       id: g.id,
@@ -324,5 +408,19 @@ export async function report(db: Db, uid: string, input: Record<string, unknown>
     contacts: contacts.length,
     network_interactions: interactions.filter((r) => within(r.occurred_at)).length,
     application_stages: group(apps, "status"),
+    applications_marked_applied: apps.filter((a) => within(a.date_applied)).length,
+    interview_practice_sessions: practice.filter((p) => within(p.practiced_at)).length,
+    current_interview_question_status: group(questions, "status"),
+    learning_assignments_completed: assignments.filter(
+      (a) => a.status === "completed" && within(a.completed_at),
+    ).length,
+    activity_count: activities.filter((a) => within(a.occurred_at)).length,
+    recent_activity: activities
+      .filter((a) => within(a.occurred_at))
+      .sort((a, b) => String(b.occurred_at).localeCompare(String(a.occurred_at)))
+      .slice(0, 50)
+      .map((a) => ({ summary: a.summary, occurred_at: a.occurred_at })),
+    snapshot_note:
+      "Statuses, manual ratings and cumulative progress are current snapshots. Date-bounded events and recorded minutes are reported separately; no historical mastery change is inferred.",
   };
 }

@@ -5,6 +5,7 @@ const uid = "00000000-0000-4000-8000-000000000001";
 const id = (n: number) => "00000000-0000-4000-8000-" + String(n).padStart(12, "0");
 function fixture(tables: Record<string, Row[]>) {
   let context: Row | null = null;
+  const calls = { contextSaves: 0 };
   const db = {
     rpc: async (_name: string, params: Row) => {
       const entity = String(params.p_entity),
@@ -31,6 +32,7 @@ function fixture(tables: Record<string, Row[]>) {
         eq: () => chain,
         maybeSingle: async () => ({ data: context, error: null }),
         upsert: async (row: Row) => {
+          calls.contextSaves++;
           context = row;
           return { error: null };
         },
@@ -43,7 +45,7 @@ function fixture(tables: Record<string, Row[]>) {
       return chain;
     },
   } as unknown as Db;
-  return { db, getContext: () => context };
+  return { db, getContext: () => context, calls };
 }
 describe("conversation references and shared calculations", () => {
   it("retains the ordered IDs across all pages rather than resolving against the last page", async () => {
@@ -69,7 +71,7 @@ describe("conversation references and shared calculations", () => {
     );
   });
   it("remembers each module in a cross-module search and clears ambiguous active selection", async () => {
-    const { db, getContext } = fixture({
+    const { db, getContext, calls } = fixture({
       tasks: [
         { id: id(2), title: "RAG task" },
         { id: id(3), title: "RAG task 2" },
@@ -77,6 +79,7 @@ describe("conversation references and shared calculations", () => {
       projects: [{ id: id(4), name: "RAG project" }],
     });
     await search(db, uid, { search: "RAG", entities: ["tasks", "projects"] }, "chat");
+    expect(calls.contextSaves).toBe(1);
     expect(getContext()?.entity).toBeNull();
     expect((await resolve(db, uid, "chat", { entity: "tasks", ordinal: 2 })).rows[0].id).toBe(
       id(3),

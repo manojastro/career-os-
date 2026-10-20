@@ -1,6 +1,17 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHash } from "node:crypto";
-const fixture = vi.hoisted(() => ({ calls: [] as string[], text: "Show my tasks" }));
+const fixture = vi.hoisted(() => ({
+  calls: [] as string[],
+  text: "Show my tasks",
+  reply: null as string | null,
+  feedback: null as Record<string, unknown> | null,
+}));
+vi.mock("@/lib/learning/service.server", () => ({
+  applyFeedback: async (_db: unknown, _uid: string, input: Record<string, unknown>) => {
+    fixture.feedback = input;
+    return { status: "completed" };
+  },
+}));
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     rpc: async (name: string) => {
@@ -12,11 +23,25 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       const chain = {
         select: () => chain,
         eq: () => chain,
+        is: () => chain,
+        limit: async () => ({
+          data: [
+            {
+              chat_ref: "legacy-protected-chat-reference",
+              assignment_id: "00000000-0000-4000-8000-000000000003",
+            },
+          ],
+          error: null,
+        }),
         maybeSingle: async () => ({
           data:
             table === "agent_owner"
               ? { user_id: "00000000-0000-4000-8000-000000000001" }
-              : { text: fixture.text, created_at: new Date().toISOString() },
+              : {
+                  text: fixture.text,
+                  reply_to_message_ref: fixture.reply,
+                  created_at: new Date().toISOString(),
+                },
           error: null,
         }),
         insert: async () => ({ error: null }),
@@ -46,11 +71,50 @@ function request(
 beforeEach(() => {
   fixture.calls.length = 0;
   fixture.text = "Show my tasks";
+  fixture.reply = null;
+  fixture.feedback = null;
   vi.stubEnv("AGENT_TOKEN_SHA256", createHash("sha256").update(token).digest("hex"));
   vi.stubEnv("TELEGRAM_OWNER_ID_SHA256", createHash("sha256").update("123").digest("hex"));
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("owner HTTP boundary", () => {
+  it("passes only a trusted actual reply mapping to the learning transaction", async () => {
+    fixture.text = "Completed it in 45 minutes";
+    fixture.reply = "40";
+    const response = await handleControl(request("learning", { kind: "completed", minutes: 45 }));
+    expect(response.status).toBe(200);
+    expect(fixture.feedback).toMatchObject({
+      channel: "telegram",
+      minutes: 45,
+      telegram: {
+        chat_ref: "legacy-protected-chat-reference",
+        message_id: "42",
+        reply_to_message_id: "40",
+      },
+    });
+  });
+  it("records a general explicit assignment command as agent provenance without a fake reply", async () => {
+    fixture.text = "done";
+    const response = await handleControl(
+      request("learning", {
+        kind: "completed",
+        assignment_id: "00000000-0000-4000-8000-000000000003",
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(fixture.feedback).toMatchObject({ channel: "agent", minutes: null });
+    expect(fixture.feedback).not.toHaveProperty("telegram");
+  });
+  it("cannot turn a read request into completed learning", async () => {
+    const response = await handleControl(
+      request("learning", {
+        kind: "completed",
+        assignment_id: "00000000-0000-4000-8000-000000000003",
+      }),
+    );
+    expect(response.status).toBe(409);
+    expect(fixture.feedback).toBeNull();
+  });
   it("requires activated server authentication", async () => {
     vi.stubEnv("AGENT_TOKEN_SHA256", "");
     expect((await handleControl(request())).status).toBe(503);

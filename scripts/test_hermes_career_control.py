@@ -13,6 +13,11 @@ class BoundaryTests(unittest.TestCase):
   return SimpleNamespace(source=SimpleNamespace(platform=SimpleNamespace(value="telegram"),user_id=sender,chat_id=chat,chat_type=kind,is_bot=False),message_id=message,internal=False,raw_message=SimpleNamespace(text=text,caption=None),text=text,media_urls=media or [],allow_gateway_control=True)
  def context(self):
   return patch.object(plugin,"get_session_env",side_effect=lambda k,d="":{"HERMES_SESSION_PLATFORM":"telegram","HERMES_SESSION_USER_ID":"123","HERMES_SESSION_CHAT_ID":"123","HERMES_SESSION_CHAT_TYPE":"dm","HERMES_SESSION_MESSAGE_ID":"42"}.get(k,d))
+ def test_actual_reply_metadata_is_captured_at_ingress(self):
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req:
+   event=self.event(text="done");event.raw_message.reply_to_message=SimpleNamespace(message_id=40)
+   plugin.ingress(event=event)
+   self.assertEqual(req.call_args.args[2]["reply_to_message_ref"],"40")
  def test_sender_and_chat_authorization(self):
   with patch.object(plugin,"request") as req:
    for e in [self.event(sender="456"),self.event(chat="-99",kind="group"),self.event(chat="456")]:self.assertEqual(plugin.ingress(event=e)["action"],"skip")

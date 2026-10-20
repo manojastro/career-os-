@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Output, streamText } from "ai";
 import { z } from "zod";
 import { AI_MODEL, lovableGateway, reasoningOptions, userClient } from "@/lib/ai-gateway.server";
+import { checkAiQuota } from "@/lib/ai-quota.server";
+import { readJsonLimited } from "@/lib/learning/http";
 
 const inputSchema = z.object({ description: z.string().trim().min(80).max(20000) });
 
@@ -15,25 +17,39 @@ const outputSchema = z.object({
 });
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export const Route = createFileRoute("/api/ai/analyze-jd")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const parsed = inputSchema.safeParse(await request.json().catch(() => null));
-        if (!parsed.success) return json({ error: "Paste a job description of at least 80 characters." }, 400);
+        const body = await readJsonLimited(request, 90000);
+        if (!body.ok) return json({ error: body.error }, body.status);
+        const parsed = inputSchema.safeParse(body.body);
+        if (!parsed.success)
+          return json({ error: "Paste a job description of at least 80 characters." }, 400);
 
         const session = await userClient(request);
         if (!session) return json({ error: "Sign in to analyze a job description." }, 401);
 
         const apiKey = process.env["LOVABLE_API_KEY"];
-        if (!apiKey) return json({ error: "AI is not configured on the server. Local analysis is used instead." }, 503);
+        if (!apiKey)
+          return json(
+            { error: "AI is not configured on the server. Local analysis is used instead." },
+            503,
+          );
+        const quota = await checkAiQuota(session.user.id, "analyze-jd");
+        if (quota) return quota;
 
         try {
           const gateway = lovableGateway(apiKey);
           const result = streamText({
+            abortSignal: AbortSignal.timeout(30000),
+            maxOutputTokens: 1800,
             model: gateway.responses(AI_MODEL),
             system:
               "Extract only requirements stated in this job description. Return required_skills, preferred_skills, tools, cloud_requirements, experience_signals and responsibilities. Do not infer unstated qualifications. Keep entries concise and deduplicate.",
@@ -43,10 +59,9 @@ export const Route = createFileRoute("/api/ai/analyze-jd")({
           });
           return json(await result.output);
         } catch (cause) {
-          return json({ error: cause instanceof Error ? cause.message : "AI analysis failed." }, 502);
+          return json({ error: "AI analysis failed or timed out. Try again later." }, 502);
         }
       },
     },
   },
 });
-

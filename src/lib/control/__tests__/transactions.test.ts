@@ -49,6 +49,10 @@ async function execute(
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(readFileSync(new URL("./schema-fixture.sql", import.meta.url), "utf8"));
+  // Existing production partial indexes are separate from the column/constraint export.
+  await db.exec(
+    "CREATE UNIQUE INDEX telegram_message_map_unique ON telegram_message_map(user_id,chat_ref,message_id,direction) WHERE message_id <> ''; CREATE UNIQUE INDEX learning_session_focus_unique ON learning_sessions(focus_session_id) WHERE focus_session_id IS NOT NULL;",
+  );
   await db.query("INSERT INTO auth.users VALUES($1),($2)", [uid, other]);
   await db.query("INSERT INTO agent_owner(singleton,user_id) VALUES(true,$1)", [uid]);
   const learning = readFileSync(
@@ -56,6 +60,17 @@ beforeAll(async () => {
     "utf8",
   );
   for (const fn of learning.match(/create or replace function[\s\S]*?end \$\$;/gi) ?? [])
+    await db.exec(fn);
+  const delivery = readFileSync(
+    new URL(
+      "../../../../drizzle/migrations/0004_learning_timezone_delivery_reservations.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  for (const fn of delivery.match(
+    /create or replace function public\.learning_(?:begin|finish)_delivery[\s\S]*?end \$\$;/gi,
+  ) ?? [])
     await db.exec(fn);
   await db.exec(
     readFileSync(
@@ -68,6 +83,256 @@ afterAll(async () => {
   await db?.close();
 });
 describe("real PostgreSQL control transactions", () => {
+  it("runs an isolated assignment, reserved delivery, mapped reply and exactly-once learning ledger", async () => {
+    await db.exec("BEGIN");
+    try {
+      const insert = async (sql: string, values: unknown[]) =>
+        (await db.query<{ id: string }>(sql, values)).rows[0].id;
+      const skill = await insert(
+        "INSERT INTO skills(user_id,name) VALUES($1,'Synthetic learning loop skill') RETURNING id",
+        [uid],
+      );
+      const source = await insert(
+        "INSERT INTO curriculum_sources(user_id,url,document_id) VALUES($1,'https://fixture.test/guide','synthetic-guide') RETURNING id",
+        [uid],
+      );
+      const topic = await insert(
+        "INSERT INTO curriculum_topics(user_id,source_id,stable_topic_id,volume,title,skill_id) VALUES($1,$2,'SYNTHETIC-1','I','Synthetic test topic',$3) RETURNING id",
+        [uid, source, skill],
+      );
+      await db.query(
+        "INSERT INTO learning_preferences(user_id,baseline_completed_at,paused) VALUES($1,now(),false) ON CONFLICT(user_id) DO UPDATE SET baseline_completed_at=now(),paused=false",
+        [uid],
+      );
+      await db.query(
+        "INSERT INTO learning_baselines(user_id,topic_id,level) VALUES($1,$2,'Not Started')",
+        [uid, topic],
+      );
+      const call = async (name: string, input: Record<string, unknown>) =>
+        (
+          await db.query<{
+            r: {
+              assignment: { id: string; task_id: string };
+              send_allowed?: boolean;
+              delivery_id?: string;
+              reservation_token?: string;
+              reply_mappable?: boolean;
+              replayed?: boolean;
+            };
+          }>(`SELECT ${name}($1,$2::jsonb) r`, [uid, JSON.stringify(input)])
+        ).rows[0].r;
+      const date = (
+        await db.query<{ date_value: string }>(
+          "SELECT to_char(now() at time zone 'Asia/Kolkata','YYYY-MM-DD') date_value",
+        )
+      ).rows[0].date_value;
+      const created = await call("learning_create_assignment", {
+        topic_id: topic,
+        assignment_date: date,
+        plan: [{ step: "Synthetic fixture exercise", minutes: 45 }],
+        completion_criteria: "Synthetic fixture evidence attached",
+        idempotency_key: "fixture:loop:assignment",
+      });
+      const assignment = created.assignment;
+      const reserved = await call("learning_begin_delivery", {
+        assignment_id: assignment.id,
+        kind: "morning_plan",
+        chat_ref: "fixture-private-chat",
+        idempotency_key: "fixture:loop:delivery",
+      });
+      expect(reserved.send_allowed).toBe(true);
+      const finished = await call("learning_finish_delivery", {
+        delivery_id: reserved.delivery_id,
+        reservation_token: reserved.reservation_token,
+        status: "sent",
+        chat_ref: "fixture-private-chat",
+        message_id: "700",
+      });
+      expect(finished.reply_mappable).toBe(true);
+      await db.query(
+        "INSERT INTO evidence(user_id,title,kind,skill_id) VALUES($1,'Synthetic fixture evidence','note',$2)",
+        [uid, skill],
+      );
+      const feedback = {
+        assignment_id: assignment.id,
+        kind: "completed",
+        minutes: 45,
+        minutes_mode: "total",
+        channel: "telegram",
+        text: "Completed it in 45 minutes",
+        telegram: {
+          chat_ref: "fixture-private-chat",
+          message_id: "701",
+          reply_to_message_id: "700",
+        },
+        idempotency_key: "fixture:loop:feedback",
+      };
+      await call("learning_apply_feedback", feedback);
+      expect((await call("learning_apply_feedback", feedback)).replayed).toBe(true);
+      const rows = (
+        await db.query<{ status: string; actual_minutes: number; ledger: number; mirrors: number }>(
+          "SELECT t.status,t.actual_minutes,(SELECT count(*)::int FROM focus_sessions WHERE task_id=t.id) ledger,(SELECT count(*)::int FROM learning_sessions WHERE task_id=t.id AND focus_session_id IS NOT NULL) mirrors FROM tasks t WHERE id=$1",
+          [assignment.task_id],
+        )
+      ).rows[0];
+      expect(rows).toEqual({ status: "completed", actual_minutes: 45, ledger: 1, mirrors: 1 });
+      await expect(
+        call("learning_apply_feedback", {
+          ...feedback,
+          idempotency_key: "fixture:loop:forged",
+          telegram: { ...feedback.telegram, reply_to_message_id: "999" },
+        }),
+      ).rejects.toThrow("telegram_reply_not_mapped");
+    } finally {
+      await db.exec("ROLLBACK");
+    }
+  });
+  it("requires opt-in confirmation for recurrence, creates one zero-progress successor, and undoes it atomically", async () => {
+    const task = await execute([
+      {
+        entity: "tasks",
+        action: "create",
+        values: { title: "Monthly recurrence fixture", due_date: "2099-01-31" },
+      },
+    ]);
+    const id = task.changes[0].record.id;
+    const configure = [
+      { entity: "tasks", action: "set_recurrence", id, values: { cadence: "monthly" } },
+    ];
+    const preview = await execute(configure);
+    expect(preview.status).toBe("awaiting_confirmation");
+    await execute(configure, undefined, await inbound(preview.reply), preview.approval_id);
+    const message = await inbound("Complete the recurring fixture"),
+      key = "test:recurrence:complete";
+    const completed = await execute(
+      [{ entity: "tasks", action: "update", id, values: { status: "completed" } }],
+      key,
+      message,
+    );
+    const child = completed.changes[0].record.repeat_child_id;
+    expect(child).toBeTruthy();
+    expect(
+      (
+        await execute(
+          [{ entity: "tasks", action: "update", id, values: { status: "completed" } }],
+          key,
+          message,
+        )
+      ).changes[0].record.repeat_child_id,
+    ).toBe(child);
+    const row = (
+      await db.query<{ due_date: string; actual_minutes: number; completed_at: null }>(
+        "SELECT due_date::text,actual_minutes,completed_at FROM tasks WHERE id=$1",
+        [child],
+      )
+    ).rows[0];
+    expect(row).toEqual({ due_date: "2099-02-28", actual_minutes: 0, completed_at: null });
+    await db.query("SELECT control_undo($1,$2,$3)", [
+      uid,
+      completed.request_key,
+      "test:recurrence:undo",
+    ]);
+    expect(
+      (
+        await db.query<{ repeat_child_id: null }>("SELECT repeat_child_id FROM tasks WHERE id=$1", [
+          id,
+        ])
+      ).rows[0].repeat_child_id,
+    ).toBeNull();
+    expect(
+      (
+        await db.query<{ deleted: boolean }>(
+          "SELECT deleted_at IS NOT NULL deleted FROM tasks WHERE id=$1",
+          [child],
+        )
+      ).rows[0].deleted,
+    ).toBe(true);
+    const again = await execute([
+      { entity: "tasks", action: "update", id, values: { status: "completed" } },
+    ]);
+    expect(again.changes[0].record.repeat_child_id).not.toBe(child);
+  });
+  it("completes and reopens owned subtasks without granting arbitrary completion timestamps", async () => {
+    const task = await execute([
+      { entity: "tasks", action: "create", values: { title: "Subtask lifecycle fixture" } },
+    ]);
+    const subtask = await execute([
+      {
+        entity: "task_subtasks",
+        action: "create",
+        values: { task_id: task.changes[0].record.id, title: "Verify outcome" },
+      },
+    ]);
+    const id = subtask.changes[0].record.id;
+    const completed = await execute([
+      { entity: "task_subtasks", action: "set_completed", id, values: { completed: true } },
+    ]);
+    expect(completed.changes[0].record.completed_at).toBeTruthy();
+    const reopened = await execute([
+      { entity: "task_subtasks", action: "set_completed", id, values: { completed: false } },
+    ]);
+    expect(reopened.changes[0].record.completed_at).toBeNull();
+    await expect(
+      execute([
+        { entity: "task_subtasks", action: "update", id, values: { completed_at: "2000-01-01" } },
+      ]),
+    ).rejects.toThrow("protected_field");
+  });
+  it("atomically saves website changes, rejects cross-owner/stale writes and replays a lost response once", async () => {
+    await db.exec(
+      "CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;",
+    );
+    const request = "00000000-0000-4000-8000-000000000099";
+    await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [uid]);
+    try {
+      const call = () =>
+        db.query<{ r: ControlResult }>(
+          "SELECT workspace_write('projects','create',NULL,$1,$2,NULL) r",
+          [JSON.stringify({ name: "Website transactional fixture" }), request],
+        );
+      const first = (await call()).rows[0].r,
+        retry = (await call()).rows[0].r;
+      expect(retry).toEqual(first);
+      expect(first.status).toBe("completed");
+      const id = first.changes[0].record.id;
+      await expect(
+        db.query(
+          "SELECT workspace_write('projects','update',$1,$2,gen_random_uuid(),'2000-01-01T00:00:00Z')",
+          [id, JSON.stringify({ description: "Stale draft" })],
+        ),
+      ).rejects.toThrow("revision_conflict");
+      await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [other]);
+      await expect(
+        db.query("SELECT workspace_write('projects','delete',$1,'{}',gen_random_uuid(),NULL)", [
+          id,
+        ]),
+      ).rejects.toThrow("record_not_found");
+      await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [uid]);
+      await db.exec(
+        "CREATE FUNCTION public.fixture_fail_activity() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture_activity_unavailable';END $$; CREATE TRIGGER fixture_fail_activity BEFORE INSERT ON activity_log FOR EACH ROW EXECUTE FUNCTION fixture_fail_activity();",
+      );
+      try {
+        await expect(
+          db.query("SELECT workspace_write('projects','create',NULL,$1,gen_random_uuid(),NULL)", [
+            JSON.stringify({ name: "Must roll back with activity" }),
+          ]),
+        ).rejects.toThrow("fixture_activity_unavailable");
+      } finally {
+        await db.exec(
+          "DROP TRIGGER fixture_fail_activity ON activity_log;DROP FUNCTION fixture_fail_activity();",
+        );
+      }
+      expect(
+        (
+          await db.query<{ n: number }>(
+            "SELECT count(*)::integer n FROM projects WHERE name='Must roll back with activity'",
+          )
+        ).rows[0].n,
+      ).toBe(0);
+    } finally {
+      await db.query("SELECT set_config('request.jwt.claim.sub','',false)");
+    }
+  });
   it("normalizes new skill identities and rejects duplicates without merging evidence or history", async () => {
     const added = await execute([
       { entity: "skills", action: "create", values: { name: "  Distinct fixture skill  " } },
@@ -738,6 +1003,17 @@ describe("real PostgreSQL control transactions", () => {
     ).rejects.toThrow("approval_stale_repreview");
   });
   it("denies service functions to authenticated clients", async () => {
+    for (const [role, permitted] of [
+      ["anon", false],
+      ["service_role", false],
+      ["authenticated", true],
+    ] as const) {
+      const result = await db.query<{ ok: boolean }>(
+        "SELECT has_function_privilege($1,'workspace_write(text,text,uuid,jsonb,uuid,timestamptz)','execute') ok",
+        [role],
+      );
+      expect(result.rows[0].ok, role).toBe(permitted);
+    }
     expect(
       (
         await db.query<{ ok: boolean }>(
@@ -777,31 +1053,31 @@ describe("real PostgreSQL control transactions", () => {
     ]);
     expect(
       (
-        await db.query<{ day: string }>(
-          'SELECT scheduled_date::text AS "day" FROM tasks WHERE id=$1',
+        await db.query<{ date_value: string }>(
+          "SELECT scheduled_date::text AS date_value FROM tasks WHERE id=$1",
           [id],
         )
-      ).rows[0].day,
+      ).rows[0].date_value,
     ).toBe("2026-10-13");
     const moved = await execute([
       { entity: "tasks", action: "update", id, values: { scheduled_date: "2026-10-14" } },
     ]);
     expect(
       (
-        await db.query<{ day: string }>(
-          'SELECT block_date::text AS "day" FROM planner_blocks WHERE id=$1',
+        await db.query<{ date_value: string }>(
+          "SELECT block_date::text AS date_value FROM planner_blocks WHERE id=$1",
           [block.id],
         )
-      ).rows[0].day,
+      ).rows[0].date_value,
     ).toBe("2026-10-14");
     await db.query("SELECT control_undo($1,$2,$3)", [uid, moved.request_key, "test:undo:schedule"]);
     expect(
       (
-        await db.query<{ day: string }>(
-          'SELECT block_date::text AS "day" FROM planner_blocks WHERE id=$1',
+        await db.query<{ date_value: string }>(
+          "SELECT block_date::text AS date_value FROM planner_blocks WHERE id=$1",
           [block.id],
         )
-      ).rows[0].day,
+      ).rows[0].date_value,
     ).toBe("2026-10-13");
     await execute([
       {

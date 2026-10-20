@@ -92,7 +92,9 @@ def ingress(*,event=None,**kwargs):
     text=str(text or "")
     if re.search(r"sk-or-v1-[a-f0-9]{32,}|\b\d{7,12}:[A-Za-z0-9_-]{30,}",text):return {"action":"rewrite","text":"Tell the owner to revoke the exposed credential and configure its replacement through a secure local interface. Do not repeat the credential."}
     p={"sender":sender,"chat":chat,"chat_type":"private","message":message}
-    result=request(p,"begin",{"text":text[:20000]})
+    reply=getattr(raw,"reply_to_message",None) if raw is not None else None
+    reply_ref=str(getattr(reply,"message_id","") or getattr(event,"reply_to_message_id","") or "")
+    result=request(p,"begin",{"text":text[:20000],"reply_to_message_ref":reply_ref if re.fullmatch(r"[1-9][0-9]{0,19}",reply_ref) else None})
     if result.get("status")!="ready":return {"action":"rewrite","text":"Career OS control API unavailable. Report that full control is not active and no changes were made. Error code: "+str(result.get("error","unknown"))}
     media=list(getattr(event,"media_urls",[]) or [])
     with _LOCK, _db() as db:
@@ -148,8 +150,8 @@ SCHEMAS={
  "query":obj({"entity":S,"search":S,"limit":N,"offset":N,"sort":S,"direction":{"type":"string","enum":["asc","desc"]},"filters":{"type":"array","items":obj({"field":S,"op":{"type":"string","enum":["eq","ne","gte","lte","contains","is_null"]},"value":{}},["field","op"])}},["entity"]),
  "search":obj({"search":S,"entities":{"type":"array","items":S},"limit":N,"offset":N,"sort":S,"direction":{"type":"string","enum":["asc","desc"]}},["search"]),
  "resolve":obj({"entity":S,"name":S,"ordinal":N,"selected":B},["entity"]),
- "execute":obj({"operations":{"type":"array","minItems":1,"maxItems":50,"items":obj({"entity":S,"action":{"type":"string","enum":["create","update","delete","record_time","edit_text"]},"id":S,"values":ANY,"ref":S},["entity","action"])}},["operations"]),
- "learning":obj({"assignment_id":S,"date":S,"kind":{"type":"string","enum":["completed","partial","not_started","reschedule","help"]},"minutes":N,"minutes_mode":{"type":"string","enum":["total","additional"]},"notes":S,"new_date":S},["kind"]),
+ "execute":obj({"operations":{"type":"array","minItems":1,"maxItems":50,"items":obj({"entity":S,"action":{"type":"string","enum":["create","update","delete","record_time","edit_text","set_completed","set_recurrence"]},"id":S,"values":ANY,"ref":S},["entity","action"])}},["operations"]),
+ "learning":obj({"assignment_id":S,"date":S,"kind":{"type":"string","enum":["completed","partial","not_started","reschedule","help","minutes"]},"minutes":N,"minutes_mode":{"type":"string","enum":["total","additional"]},"notes":S,"new_date":S},["kind"]),
  "learning_manage":obj({"operation":{"type":"string","enum":["status","generate_plan","sync_guide","finish_baseline"]}},["operation"]),
  "report":obj({"from":S,"to":S},["from","to"]),
  "export":obj({"entity":S,"project_id":S,"format":{"type":"string","enum":["json","csv"]}}),

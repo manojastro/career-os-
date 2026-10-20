@@ -3,6 +3,8 @@ import { z } from "zod";
 import { agentJson, verifyAgentToken } from "@/lib/agent-auth.server";
 import { readJsonLimited } from "@/lib/learning/http";
 import { registry, validateOperations, verifyTelegramIdentity } from "./protocol";
+import { csvCell } from "./csv";
+import { verifyFeedbackIntent } from "./learning-feedback";
 import { allRows, query, resolve, search, report, rpc, type Db } from "./queries.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database";
@@ -16,6 +18,8 @@ const envelope = z
   })
   .strict();
 const errorCodes = [
+  "invalid_recurrence",
+  "invalid_completion",
   "skill_name_exists",
   "unsupported_entity",
   "unsupported_operation",
@@ -112,28 +116,40 @@ export async function handleControl(request: Request): Promise<Response> {
         .slice(0, 32);
     if (action === "begin") {
       const text = z.string().max(20000).parse(input.text);
+      const replyRef =
+        z
+          .string()
+          .regex(/^[1-9][0-9]{0,19}$/)
+          .nullable()
+          .optional()
+          .parse(input.reply_to_message_ref) ?? null;
       if (/sk-or-v1-[a-f0-9]{32,}|\b\d{7,12}:[A-Za-z0-9_-]{30,}/.test(text))
         return agentJson({ error: "use_secure_credentials_interface" }, 400);
       const { data: prior, error } = await db
         .from("control_messages")
-        .select("id,text")
+        .select("id,text,reply_to_message_ref")
         .eq("user_id", uid)
         .eq("chat_ref", chat)
         .eq("message_ref", identity.message)
         .maybeSingle();
       if (error) throw new Error("context_unavailable");
-      if (prior && prior.text !== text) throw new Error("idempotency_conflict");
+      if (prior && (prior.text !== text || (prior.reply_to_message_ref ?? null) !== replyRef))
+        throw new Error("idempotency_conflict");
       if (!prior) {
-        const { error } = await db
-          .from("control_messages")
-          .insert({ user_id: uid, chat_ref: chat, message_ref: identity.message, text });
+        const { error } = await db.from("control_messages").insert({
+          user_id: uid,
+          chat_ref: chat,
+          message_ref: identity.message,
+          text,
+          reply_to_message_ref: replyRef,
+        });
         if (error) throw new Error("context_save_failed");
       }
       return agentJson({ status: "ready" });
     }
     const { data: message, error: messageError } = await db
       .from("control_messages")
-      .select("text,created_at")
+      .select("text,created_at,reply_to_message_ref")
       .eq("user_id", uid)
       .eq("chat_ref", chat)
       .eq("message_ref", identity.message)
@@ -142,7 +158,7 @@ export async function handleControl(request: Request): Promise<Response> {
       throw new Error("inbound_context_required");
     if (action === "catalog") {
       const entity = input.entity ? String(input.entity) : null;
-      if (entity && !registry[entity]) throw new Error("unsupported_entity");
+      if (entity && !Object.hasOwn(registry, entity)) throw new Error("unsupported_entity");
       return agentJson({
         entities: entity
           ? { [entity]: registry[entity] }
@@ -160,6 +176,8 @@ export async function handleControl(request: Request): Promise<Response> {
               ]),
             ),
         capabilities: [
+          "set_recurrence (tasks; values: {cadence: daily|weekly|monthly|null}; exact confirmation required)",
+          "set_completed (subtasks, project_milestones, followups; values: {completed: boolean})",
           "query",
           "search",
           "resolve",
@@ -304,7 +322,7 @@ export async function handleControl(request: Request): Promise<Response> {
             .string()
             .regex(/^\d{4}-\d{2}-\d{2}$/)
             .optional(),
-          kind: z.enum(["completed", "partial", "not_started", "reschedule", "help"]),
+          kind: z.enum(["completed", "partial", "not_started", "reschedule", "help", "minutes"]),
           minutes: z.number().int().min(0).max(600).optional(),
           minutes_mode: z.enum(["total", "additional"]).optional(),
           notes: z.string().max(4000).optional(),
@@ -315,11 +333,43 @@ export async function handleControl(request: Request): Promise<Response> {
         })
         .strict()
         .parse(input);
+      const verified = verifyFeedbackIntent(message.text, feedback);
+      let telegram:
+        { chat_ref: string; message_id: string; reply_to_message_id: string } | undefined;
+      if (message.reply_to_message_ref) {
+        // The authenticated ingress captures the actual Telegram reply. Never accept a
+        // model-supplied reply ID or guess between legacy chat-reference conventions.
+        const { data: mappings, error } = await db
+          .from("telegram_message_map")
+          .select("chat_ref,assignment_id")
+          .eq("user_id", uid)
+          .eq("message_id", message.reply_to_message_ref)
+          .eq("direction", "outbound")
+          .eq("delivery_status", "sent")
+          .is("deleted_at", null)
+          .limit(2);
+        if (
+          error ||
+          mappings?.length !== 1 ||
+          !mappings[0].assignment_id ||
+          (feedback.assignment_id && feedback.assignment_id !== mappings[0].assignment_id)
+        )
+          throw new Error("needs_clarification");
+        telegram = {
+          chat_ref: mappings[0].chat_ref,
+          message_id: identity.message,
+          reply_to_message_id: message.reply_to_message_ref,
+        };
+      } else if (!feedback.assignment_id && !feedback.date) {
+        throw new Error("needs_clarification");
+      }
       return agentJson(
         await svc.applyFeedback(db, uid, {
           ...feedback,
+          ...verified,
           idempotency_key: key,
-          channel: "telegram",
+          channel: telegram ? "telegram" : "agent",
+          ...(telegram ? { telegram } : {}),
           text: message.text,
         } as Parameters<typeof svc.applyFeedback>[2]),
       );
@@ -416,7 +466,7 @@ async function exportWorkspace(
   key: string,
 ): Promise<Response> {
   const requested = input.entity ? String(input.entity) : null;
-  if (requested && !registry[requested]) throw new Error("unsupported_entity");
+  if (requested && !Object.hasOwn(registry, requested)) throw new Error("unsupported_entity");
   const entities = requested ? [requested] : Object.keys(registry);
   const project = input.project_id === undefined ? null : z.string().uuid().parse(input.project_id);
   const data = await rpc<Record<string, unknown>>(db, "control_export", {
@@ -431,10 +481,7 @@ async function exportWorkspace(
     if (!requested) throw new Error("CSV_requires_one_entity");
     const rows = data[requested] as Record<string, unknown>[];
     const fields = Object.keys(registry[requested].fields);
-    const quote = (v: unknown) =>
-      '"' +
-      String(typeof v === "object" ? JSON.stringify(v) : (v ?? "")).replaceAll('"', '""') +
-      '"';
+    const quote = csvCell;
     body = [
       fields.map(quote).join(","),
       ...rows.map((r) => fields.map((k) => quote(r[k])).join(",")),

@@ -1,7 +1,40 @@
 export type TaskStatus = "backlog" | "month" | "week" | "today" | "doing" | "completed";
-export type TaskType = "Learn" | "Build" | "Practice" | "Interview" | "Network" | "Apply" | "Research" | "Document" | "Admin";
+export type TaskType =
+  | "Learn"
+  | "Build"
+  | "Practice"
+  | "Interview"
+  | "Network"
+  | "Apply"
+  | "Research"
+  | "Document"
+  | "Admin";
 export type Priority = "low" | "medium" | "high";
-export type ApplicationStatus = "Saved" | "Planning to Apply" | "Applied" | "Recruiter Contact" | "Screening" | "Technical Interview" | "Hiring Manager" | "Final Round" | "Offer" | "Rejected" | "Withdrawn";
+export const APPLICATION_STAGES = [
+  "Saved",
+  "Planning to Apply",
+  "Applied",
+  "Recruiter Contact",
+  "Screening",
+  "Technical Interview",
+  "Hiring Manager",
+  "Final Round",
+  "Offer",
+  "Rejected",
+  "Withdrawn",
+] as const;
+export type ApplicationStatus =
+  | "Saved"
+  | "Planning to Apply"
+  | "Applied"
+  | "Recruiter Contact"
+  | "Screening"
+  | "Technical Interview"
+  | "Hiring Manager"
+  | "Final Round"
+  | "Offer"
+  | "Rejected"
+  | "Withdrawn";
 export type SkillStatus = "Not Started" | "Learning" | "Practicing" | "Applied" | "Interview Ready";
 
 export interface RowBase {
@@ -36,6 +69,7 @@ export interface Task extends RowBase {
   recurrence: string | null;
   evidence_required: boolean;
   skill_topic_id?: string | null;
+  repeat_child_id?: string | null;
 }
 
 export interface Goal extends RowBase {
@@ -97,7 +131,15 @@ export interface Contact extends RowBase {
   linkedin_url: string;
   email: string;
   location: string;
-  relationship_stage: "New" | "Connected" | "Conversation Started" | "Active" | "Warm" | "Recruiter" | "Mentor" | "Archived";
+  relationship_stage:
+    | "New"
+    | "Connected"
+    | "Conversation Started"
+    | "Active"
+    | "Warm"
+    | "Recruiter"
+    | "Mentor"
+    | "Archived";
   topics: string[];
   notes: string;
   date_connected: string | null;
@@ -107,7 +149,15 @@ export interface Contact extends RowBase {
 
 export interface NetworkInteraction extends RowBase {
   contact_id: string;
-  kind: "LinkedIn connection" | "LinkedIn message" | "email" | "call" | "meeting" | "comment" | "referral" | "follow-up";
+  kind:
+    | "LinkedIn connection"
+    | "LinkedIn message"
+    | "email"
+    | "call"
+    | "meeting"
+    | "comment"
+    | "referral"
+    | "follow-up";
   occurred_at: string;
   notes: string;
 }
@@ -115,7 +165,16 @@ export interface NetworkInteraction extends RowBase {
 export interface InterviewQuestion extends RowBase {
   question: string;
   answer: string;
-  category: "Technical" | "Coding" | "System Design" | "Project" | "Behavioral" | "Architecture" | "Debugging" | "Cloud" | "AI/LLM";
+  category:
+    | "Technical"
+    | "Coding"
+    | "System Design"
+    | "Project"
+    | "Behavioral"
+    | "Architecture"
+    | "Debugging"
+    | "Cloud"
+    | "AI/LLM";
   difficulty: "Easy" | "Medium" | "Hard";
   status: "New" | "Learning" | "Practiced" | "Strong";
   confidence: number;
@@ -253,6 +312,18 @@ export interface AppNotification extends RowBase {
 }
 
 export interface EntityMap {
+  task_subtasks: RowBase & { task_id: string; title: string; completed_at: string | null };
+  task_dependencies: RowBase & { task_id: string; depends_on_id: string };
+  project_milestones: RowBase & Record<string, unknown>;
+  project_decisions: RowBase & Record<string, unknown>;
+  project_tasks: RowBase & Record<string, unknown>;
+  mock_interviews: RowBase & Record<string, unknown>;
+  job_interviews: RowBase & Record<string, unknown>;
+  followups: RowBase & Record<string, unknown>;
+  companies: RowBase & Record<string, unknown>;
+  job_leads: RowBase & Record<string, unknown>;
+  outreach: RowBase & Record<string, unknown>;
+  events: RowBase & Record<string, unknown>;
   tasks: Task;
   goals: Goal;
   milestones: Milestone;
@@ -282,13 +353,43 @@ export type EntityName = keyof EntityMap;
 export type AppData = { [K in EntityName]: EntityMap[K][] };
 
 export const ENTITY_NAMES: EntityName[] = [
-  "tasks", "goals", "milestones", "skills", "skill_topics", "projects", "contacts",
-  "network_interactions", "interview_questions", "interview_practice", "interview_stories", "job_applications",
-  "job_skill_requirements", "focus_sessions", "notes", "resources", "evidence", "inbox_items", "activity_log",
-  "daily_logs", "planner_blocks", "learning_sessions", "notifications",
+  "task_subtasks",
+  "task_dependencies",
+  "project_milestones",
+  "project_decisions",
+  "project_tasks",
+  "mock_interviews",
+  "job_interviews",
+  "followups",
+  "companies",
+  "job_leads",
+  "outreach",
+  "events",
+  "tasks",
+  "goals",
+  "milestones",
+  "skills",
+  "skill_topics",
+  "projects",
+  "contacts",
+  "network_interactions",
+  "interview_questions",
+  "interview_practice",
+  "interview_stories",
+  "job_applications",
+  "job_skill_requirements",
+  "focus_sessions",
+  "notes",
+  "resources",
+  "evidence",
+  "inbox_items",
+  "activity_log",
+  "daily_logs",
+  "planner_blocks",
+  "learning_sessions",
+  "notifications",
 ];
 
 export function emptyData(): AppData {
   return Object.fromEntries(ENTITY_NAMES.map((name) => [name, []])) as unknown as AppData;
 }
-

@@ -3,7 +3,13 @@ type Table<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships:
 type Owned = { user_id: string; created_at: string };
 type AddedTables = {
   control_messages: Table<
-    Owned & { id: string; chat_ref: string; message_ref: string; text: string }
+    Owned & {
+      id: string;
+      chat_ref: string;
+      message_ref: string;
+      text: string;
+      reply_to_message_ref: string | null;
+    }
   >;
   control_receipts: Table<Owned & { request_key: string; payload: Json; result: Json }>;
   control_approvals: Table<

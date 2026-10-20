@@ -1721,7 +1721,7 @@
         "editable": false
       }
     },
-    "operations": ["create", "update", "delete", "edit_text"]
+    "operations": ["create", "update", "delete", "edit_text", "set_completed"]
   },
   "goals": {
     "owner": "user_id",
@@ -3815,7 +3815,7 @@
         "editable": false
       }
     },
-    "operations": ["create", "update", "delete", "edit_text"]
+    "operations": ["create", "update", "delete", "edit_text", "set_completed"]
   },
   "project_tasks": {
     "owner": "user_id",
@@ -4972,7 +4972,7 @@
         "editable": false
       }
     },
-    "operations": ["create", "update", "delete", "edit_text"]
+    "operations": ["create", "update", "delete", "edit_text", "set_completed"]
   },
   "tasks": {
     "owner": "user_id",
@@ -5135,7 +5135,7 @@
         "type": "text",
         "nullable": true,
         "required": false,
-        "editable": true
+        "editable": false
       },
       "evidence_required": {
         "type": "bool",
@@ -5167,9 +5167,16 @@
         "required": false,
         "references": "skill_topics",
         "editable": true
+      },
+      "repeat_child_id": {
+        "type": "uuid",
+        "nullable": true,
+        "required": false,
+        "editable": false,
+        "references": "tasks"
       }
     },
-    "operations": ["create", "update", "delete", "record_time", "edit_text"]
+    "operations": ["create", "update", "delete", "record_time", "edit_text", "set_recurrence"]
   },
   "telegram_message_map": {
     "owner": "user_id",
