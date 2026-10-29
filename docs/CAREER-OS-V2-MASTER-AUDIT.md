@@ -88,3 +88,10 @@ Inspection-only commands initially failed for absent `plugins`/`db` repository d
 No application tests, browser tests, live API writes, installer invocation, SDK memory/state reads or credential reads were run by this worker. Root supplies fresh baseline test output separately. Document structural/reference checks and `git diff --check` are run before this documentation commit and reported in the task report.
 
 Fresh baseline supplied by root controller after audit inspection: installed TypeScript compiler exit 0; 131 tests across 18 files pass on installed Vitest 4.1.11; 11 Hermes SDK/plugin tests pass. These are controller-run local results, not audit-worker reruns or production verification. Dependency audit still fails as V2-010 records. Build/browser results are not claimed here.
+
+
+## Additional controller evidence — 29 October
+
+Read-only production metadata: all 13 inspected core tables (agent_owner,contacts,curriculum_topics,focus_sessions,goals,job_applications,learning_assignments,learning_preferences,learning_sessions,notes,projects,skills,tasks) have RLS enabled and one policy each. Aggregate checks found 0 cross-owner task/project links, 0 cross-owner focus/task links and 0 normalized active-skill duplicate groups. Baseline remains unconfirmed; control_registry absent. This is limited metadata/integrity evidence, NOT actual cross-user authorization testing, backup verification or all-table semantic policy certification. No records were changed or row identities exposed.
+
+Current resolution: V2-001 and V2-010 repaired locally in c566177 and 7e6849d, independently reviewed. Redirect fixtures cover 301/302/303/307/308, GET/POST, absolute/relative targets and no forwarded fixture bearer. Review found/fixed a 200 HTML false-auth health regression. Final source repair ran 133 app, 11 SDK and 6 Python tests; compiler/build/audit pass. 13 inherited agent-schema formatting errors are baseline-matched, not reported as new or globally clean lint. V2-002/003/004/005/006/007/008/011 remain pending subsequent slice evidence; V2-009 remains production-blocked.
