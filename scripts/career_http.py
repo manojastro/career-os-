@@ -29,7 +29,7 @@ def validate_origin(origin):
 
 
 def request(origin, path, *, method='GET', body=None, token=None, timeout=30,
-            user_agent='CareerOS-Maintenance/1.0'):
+            user_agent='CareerOS-Maintenance/1.0', require_success_json=False):
     validate_origin(origin)
     if not isinstance(path, str) or not path.startswith('/') or path.startswith('//') or re.search(r'[\x00-\x20\x7f\\#]', path):
         raise ValueError('Origin-relative API path required')
@@ -55,5 +55,7 @@ def request(origin, path, *, method='GET', body=None, token=None, timeout=30,
         try:
             value = json.loads(data)
         except (ValueError, UnicodeError):
+            if require_success_json and 200 <= status < 400:
+                raise ValueError('Successful response is not JSON') from None
             value = {'non_json': True}
         return status, value

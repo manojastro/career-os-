@@ -106,6 +106,35 @@ class ValidationTests(unittest.TestCase):
                 request('https://example.com', '/api/test', token='fixture')
 
 
+class HealthTests(unittest.TestCase):
+    def test_success_requires_json_but_http_errors_keep_status(self):
+        import ast
+        import io
+        from pathlib import Path
+        from urllib.error import HTTPError
+        from urllib.parse import urlsplit
+        from career_http import request
+        # Load the actual wrapper alone: never execute profile/provider/health probes.
+        tree = ast.parse((Path(__file__).parent / 'check_career_control_health.py').read_text(encoding='utf-8'))
+        wrapper = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'call')
+        scope = {'urlsplit': urlsplit, 'request': request}
+        exec(compile(ast.Module(body=[wrapper], type_ignores=[]), '<health-wrapper>', 'exec'), scope)
+
+        class Response(io.BytesIO):
+            status = 200
+
+        for response, expected in (
+            (Response(b'<html>fixture login</html>'), ('unavailable', {})),
+            (Response(b'{"ok":true}'), (200, {'ok': True})),
+            (Response(b'{"non_json":true}'), (200, {'non_json': True})),
+            (HTTPError('https://example.com', 406, 'fixture', {}, io.BytesIO(b'<html>fixture</html>')),
+             (406, {'non_json': True})),
+        ):
+            with self.subTest(expected=expected), patch('urllib.request.OpenerDirector.open',
+                    side_effect=response if isinstance(response, HTTPError) else None, return_value=response):
+                self.assertEqual(scope['call']('https://example.com/api/test', token='fixture'), expected)
+
+
 class InstallerTests(unittest.TestCase):
     def test_default_dry_run_keeps_profile_untouched_and_preflight_exact(self):
         import contextlib

@@ -23,7 +23,7 @@ def call(url,method='GET',body=None,token=None):
   origin=parsed.scheme+'://'+parsed.netloc
   path=parsed.path+('?' + parsed.query if parsed.query else '')
   if parsed.fragment:raise ValueError()
-  return request(origin,path,method=method,body=body,token=token,user_agent='CareerOS-Control-Health/1.0')
+  return request(origin,path,method=method,body=body,token=token,user_agent='CareerOS-Control-Health/1.0',require_success_json=True)
  except Exception:return 'unavailable',{}
 
 token=values.get('TELEGRAM_BOT_TOKEN')
