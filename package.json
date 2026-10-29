@@ -17,7 +17,10 @@
     "rolldown": "1.2.1",
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
-    }
+    },
+    "launch-editor": "2.14.2",
+    "undici": "7.30.1",
+    "zod": "4.6.6"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.69",
@@ -80,7 +83,7 @@
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
-    "zod": "^3.25.76"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -104,7 +107,7 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "8.1.5",
-    "vitest": "4.1.11"
+    "vite": "8.1.6",
+    "vitest": "4.1.12"
   }
 }

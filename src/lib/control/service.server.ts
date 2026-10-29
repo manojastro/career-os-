@@ -14,7 +14,7 @@ const envelope = z
       .object({ sender: z.string(), chat: z.string(), chat_type: z.string(), message: z.string() })
       .strict(),
     action: z.string().max(40),
-    input: z.record(z.unknown()).default({}),
+    input: z.record(z.string(), z.unknown()).default({}),
   })
   .strict();
 const errorCodes = [

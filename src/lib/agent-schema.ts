@@ -6,7 +6,7 @@ const ts = z.string().datetime({ offset: true });
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const key = z.string().min(3).max(200);
 const text = (max: number) => z.string().max(max);
-const provenance = z.record(z.unknown()).optional();
+const provenance = z.record(z.string(), z.unknown()).optional();
 const uuid = z.string().uuid();
 
 export const ingestSchema = z
@@ -20,8 +20,8 @@ export const ingestSchema = z
         finished_at: ts.optional(),
         next_run_at: ts.optional(),
         error: text(4000).optional(),
-        usage: z.record(z.unknown()).optional(),
-        delivery: z.record(z.unknown()).optional(),
+        usage: z.record(z.string(), z.unknown()).optional(),
+        delivery: z.record(z.string(), z.unknown()).optional(),
         provenance,
       })
       .strict(),
@@ -62,6 +62,6 @@ export const ingestSchema = z
   .strict();
 
 export const completeSchema = z
-  .object({ id: uuid, status: z.enum(["completed", "failed", "queued"]), result: z.record(z.unknown()).optional() })
+  .object({ id: uuid, status: z.enum(["completed", "failed", "queued"]), result: z.record(z.string(), z.unknown()).optional() })
   .strict();
 
