@@ -324,3 +324,134 @@ it("validates owned active project/topic links, updates atomically, and clarifie
   );
   await asRole(db, "authenticated");
 });
+it("rejects secret-named facts and token fields even through direct RPC", async () => {
+  for (const input of [
+    { action: "put", category: "knowledge", key: "password", value: "hunter2" },
+    {
+      action: "put",
+      category: "knowledge",
+      key: "fact-token",
+      value: { nested: { token: "abc" } },
+    },
+    { action: "put", category: "knowledge", key: "oversized-fact", value: "x".repeat(8001) },
+    {
+      action: "put",
+      category: "knowledge",
+      key: "deep-value",
+      value: { a: { b: { c: { d: { e: { f: { g: "x" } } } } } } },
+    },
+  ])
+    await expect(call("memory", input)).rejects.toThrow("invalid_request");
+});
+it("dispatches strict service inputs into actual SQL and preserves trusted provenance/timezone", async () => {
+  const { dispatchV2 } = await import("../service.server");
+  const context = {
+    uid,
+    source: "telegram" as const,
+    requestKey: "tg:123:42:memory",
+    text: "Remember my preference",
+  };
+  await db.exec("RESET ROLE");
+  await db.query("INSERT INTO learning_preferences(user_id,timezone) VALUES($1,'Asia/Kolkata')", [
+    uid,
+  ]);
+  await asRole(db, "service_role");
+  const client = {
+    rpc: async (name: string, params: Record<string, unknown>) => {
+      if (!["agent_v2_memory", "agent_v2_documents"].includes(name))
+        throw new Error("unexpected_rpc");
+      try {
+        return {
+          data: (
+            await db.query<{ r: RegistryResult }>(`SELECT ${name}($1,$2,$3) r`, [
+              params.p_uid,
+              params.p_key,
+              JSON.stringify(params.p_input),
+            ])
+          ).rows[0].r,
+          error: null,
+        };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : "error" } };
+      }
+    },
+  } as unknown as import("@/lib/control/queries.server").Db;
+  const input = { action: "put", category: "preference", key: "timezone", value: "UTC" };
+  await expect(
+    dispatchV2(client, context, { operation: "memory", input: { ...input, source: "web" } }),
+  ).rejects.toMatchObject({ code: "invalid_request" });
+  const result = (await dispatchV2(client, context, {
+    operation: "memory",
+    input,
+  })) as RegistryResult;
+  expect(result.item).toMatchObject({
+    source: "telegram",
+    source_message: context.requestKey,
+    confirmed: false,
+  });
+  expect(result.operational).toBe(false);
+  await db.exec("RESET ROLE");
+  expect(
+    (
+      await db.query<{ timezone: string }>(
+        "SELECT timezone FROM learning_preferences WHERE user_id=$1",
+        [uid],
+      )
+    ).rows[0].timezone,
+  ).toBe("Asia/Kolkata");
+  await asRole(db, "authenticated");
+  expect(
+    JSON.stringify((await db.query("SELECT * FROM agent_v2_registry_receipts")).rows),
+  ).not.toContain('"UTC"');
+  expect((await call("memory", { action: "get", key: "never existed" })).item).toBeNull();
+});
+it("paginates lexical retrieval deterministically without expired facts or old receipt values", async () => {
+  for (const key of ["page fact a", "page fact b", "page fact c"])
+    await call("memory", { action: "put", category: "knowledge", key, value: "pagination data" });
+  const page = (await call("memory", {
+    action: "list",
+    query: "page fact",
+    limit: 2,
+  })) as RegistryResult & { next_after: string };
+  expect(page.items.map((x) => x.key)).toEqual(["page fact a", "page fact b"]);
+  expect(page.next_after).toBe("page fact b");
+  const next = await call("memory", {
+    action: "list",
+    query: "page fact",
+    limit: 2,
+    after: page.next_after,
+  });
+  expect(next.items.map((x) => x.key)).toEqual(["page fact c"]);
+  const all = await call("memory", { action: "list" });
+  expect(all.items.some((x) => x.key === "chat" || x.key === "work style")).toBe(false);
+  for (let i = 0; i < 3; i++)
+    await call("documents", {
+      action: "register",
+      file_id: "Page_File_123456789" + i,
+      kind: "doc",
+      title: "Page document " + i,
+      category: "knowledge",
+    });
+  const docs = (await call("documents", {
+    action: "list",
+    query: "Page document",
+    limit: 2,
+  })) as RegistryResult & { next_after: string };
+  const rest = await call("documents", {
+    action: "list",
+    query: "Page document",
+    limit: 2,
+    after: docs.next_after,
+  });
+  expect(docs.items).toHaveLength(2);
+  expect(rest.items).toHaveLength(1);
+  expect(new Set([...docs.items, ...rest.items].map((x) => x.id)).size).toBe(3);
+  const receipts = JSON.stringify(
+    (await db.query("SELECT * FROM agent_v2_registry_receipts")).rows,
+  );
+  expect(receipts).not.toContain("corrected");
+  expect(receipts).not.toContain("pagination data");
+  await expect(db.query("DELETE FROM agent_v2_registry_receipts")).rejects.toThrow(
+    "permission denied",
+  );
+});

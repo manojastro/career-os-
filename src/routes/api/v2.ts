@@ -1,20 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { userClient } from "@/lib/ai-gateway.server";
+import { v2Envelope } from "@/lib/agent-v2/contracts";
 import { readJsonLimited } from "@/lib/learning/http";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
-const bodySchema = z
-  .object({
-    request_id: z.uuid(),
-    text: z.string().max(20000),
-    operation: z.enum(["focus", "instruction"]),
-    input: z.record(z.string(), z.unknown()),
-  })
-  .strict();
+const bodySchema = z.union(
+  v2Envelope.options.map((schema) =>
+    schema.extend({
+      request_id: z.uuid(),
+      text: z.string().max(20000),
+    }),
+  ),
+);
 export async function handleV2(request: Request) {
   const auth = await userClient(request);
   if (!auth) return json({ error: "unauthorized" }, 401);

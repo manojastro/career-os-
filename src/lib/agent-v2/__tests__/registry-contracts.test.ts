@@ -69,3 +69,19 @@ it("rejects nested credentials, large/deep values, identity and protected docume
     v2Envelope.safeParse({ operation: "memory", input: { action: "forget", key: "fact" } }).success,
   ).toBe(false);
 });
+
+it("rejects secret-named keys and token fields before unbounded JSON parsing", () => {
+  for (const input of [
+    { action: "put", key: "password", category: "knowledge", value: "abc" },
+    { action: "put", key: "fact", category: "knowledge", value: { token: "abc" } },
+  ])
+    expect(v2Envelope.safeParse({ operation: "memory", input }).success).toBe(false);
+  let deep: unknown = "x";
+  for (let i = 0; i < 10000; i++) deep = { a: deep };
+  expect(
+    v2Envelope.safeParse({
+      operation: "memory",
+      input: { action: "put", key: "deep", category: "knowledge", value: deep },
+    }).success,
+  ).toBe(false);
+});

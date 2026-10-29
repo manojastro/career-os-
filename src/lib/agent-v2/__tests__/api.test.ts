@@ -13,7 +13,7 @@ const request = (body: unknown) =>
     body: JSON.stringify(body),
   });
 beforeAll(async () => {
-  db = await createV2Database();
+  db = await createV2Database(["0006_agent_v2_focus.sql", "0007_agent_v2_memory_documents.sql"]);
   task = (
     await db.query<{ id: string }>(
       "INSERT INTO tasks(user_id,title) VALUES($1,'Fixture API task') RETURNING id",
@@ -105,4 +105,44 @@ it("uses original web instruction text and conflicts on changed text with the sa
     (await db.query<{ n: number }>("SELECT count(*)::int n FROM tasks WHERE user_id=$1", [uid]))
       .rows[0].n,
   ).toBe(1);
+});
+
+it("exposes persisted memory and unverified documents through strict owner web API", async () => {
+  await asRole(db, "authenticated");
+  const memory = {
+    request_id: crypto.randomUUID(),
+    text: "Remember a fact",
+    operation: "memory",
+    input: { action: "put", category: "knowledge", key: "api fact", value: "saved" },
+  };
+  const stored = await handleV2(request(memory));
+  expect(stored.status).toBe(200);
+  expect((await stored.json()).item.value).toBe("saved");
+  const get = await handleV2(
+    request({
+      ...memory,
+      request_id: crypto.randomUUID(),
+      input: { action: "get", key: "api fact" },
+    }),
+  );
+  expect((await get.json()).item.value).toBe("saved");
+  expect(
+    (await handleV2(request({ ...memory, input: { ...memory.input, confirmed: true } }))).status,
+  ).toBe(400);
+  const doc = await handleV2(
+    request({
+      request_id: crypto.randomUUID(),
+      text: "Register notes",
+      operation: "documents",
+      input: {
+        action: "register",
+        file_id: "Web_File_1234567890",
+        kind: "doc",
+        title: "Web notes",
+        category: "knowledge",
+      },
+    }),
+  );
+  expect(doc.status).toBe(200);
+  expect((await doc.json()).item.status).toBe("unverified");
 });

@@ -18,6 +18,8 @@ CREATE TABLE public.agent_v2_documents_registry (
  source text NOT NULL, source_message text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz,
  UNIQUE(user_id,file_id)
 );
+CREATE INDEX agent_v2_documents_project ON public.agent_v2_documents_registry(project_id) WHERE project_id IS NOT NULL;
+CREATE INDEX agent_v2_documents_topic ON public.agent_v2_documents_registry(topic_id) WHERE topic_id IS NOT NULL;
 CREATE INDEX agent_v2_documents_page ON public.agent_v2_documents_registry(user_id,id) WHERE deleted_at IS NULL;
 CREATE TABLE public.agent_v2_document_aliases (
  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, alias text NOT NULL, document_id uuid NOT NULL REFERENCES public.agent_v2_documents_registry(id) ON DELETE CASCADE,
@@ -49,7 +51,7 @@ BEGIN
  IF p_depth>6 OR p_value IS NULL OR octet_length(p_value::text)>8000 THEN RETURN false; END IF;
  IF jsonb_typeof(p_value)='object' THEN
   FOR pair IN SELECT * FROM jsonb_each(p_value) LOOP
-   IF pair.key ~* '(password|passwd|secret|credential|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|private[_ -]?key|authorization|cookie)' OR NOT public.agent_v2_safe_json(pair.value,p_depth+1) THEN RETURN false; END IF;
+   IF pair.key ~* '(password|passwd|secret|credential|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|private[_ -]?key|authorization|cookie|(^|[_ -])token($|[_ -]))' OR NOT public.agent_v2_safe_json(pair.value,p_depth+1) THEN RETURN false; END IF;
   END LOOP;
  ELSIF jsonb_typeof(p_value)='array' THEN
   FOR child IN SELECT * FROM jsonb_array_elements(p_value) LOOP IF NOT public.agent_v2_safe_json(child,p_depth+1) THEN RETURN false; END IF; END LOOP;
@@ -78,14 +80,14 @@ BEGIN
  IF a<>'list' AND (jsonb_typeof(p_input->'key') IS DISTINCT FROM 'string' OR length(k) NOT BETWEEN 1 AND 100) THEN RAISE EXCEPTION 'invalid_request'; END IF;
  IF p_input ? 'expected_version' AND (jsonb_typeof(p_input->'expected_version') IS DISTINCT FROM 'number' OR p_input->>'expected_version' !~ '^[1-9][0-9]{0,8}$') THEN RAISE EXCEPTION 'invalid_request'; END IF;
  IF a='list' THEN
-  IF (p_input ? 'limit' AND (jsonb_typeof(p_input->'limit') IS DISTINCT FROM 'number' OR p_input->>'limit' !~ '^[0-9]{1,3}$')) OR (p_input ? 'after' AND (jsonb_typeof(p_input->'after') IS DISTINCT FROM 'string' OR length(p_input->>'after')>100)) OR (p_input ? 'query' AND (jsonb_typeof(p_input->'query') IS DISTINCT FROM 'string' OR length(p_input->>'query')>100)) OR (p_input ? 'category' AND cat NOT IN ('preference','project','knowledge','conversation','execution')) THEN RAISE EXCEPTION 'invalid_request'; END IF;
+  IF (p_input ? 'limit' AND (jsonb_typeof(p_input->'limit') IS DISTINCT FROM 'number' OR p_input->>'limit' !~ '^[0-9]{1,3}$')) OR (p_input ? 'after' AND (jsonb_typeof(p_input->'after') IS DISTINCT FROM 'string' OR length(p_input->>'after')>100)) OR (p_input ? 'query' AND (jsonb_typeof(p_input->'query') IS DISTINCT FROM 'string' OR length(p_input->>'query')>100)) OR (p_input ? 'category' AND (jsonb_typeof(p_input->'category') IS DISTINCT FROM 'string' OR cat NOT IN ('preference','project','knowledge','conversation','execution'))) THEN RAISE EXCEPTION 'invalid_request'; END IF;
   lim:=coalesce((p_input->>'limit')::integer,50); IF lim NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION 'invalid_request'; END IF;
   SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY t.key),'[]') INTO items FROM (SELECT * FROM public.agent_v2_memories WHERE user_id=p_uid AND deleted_at IS NULL AND (expires_at IS NULL OR expires_at>stamp) AND key>coalesce(p_input->>'after','') AND (cat IS NULL OR category=cat) AND (NOT p_input ? 'query' OR strpos(key,public.agent_v2_normalize(p_input->>'query'))>0) ORDER BY key LIMIT lim) t;
   RETURN jsonb_build_object('items',items,'trust','untrusted_data_not_instructions','operational',false,'next_after',CASE WHEN jsonb_array_length(items)=lim THEN items->(lim-1)->>'key' END);
  END IF;
  SELECT * INTO m FROM public.agent_v2_memories WHERE user_id=p_uid AND key=k;
- IF a='get' THEN RETURN jsonb_build_object('item',CASE WHEN m.deleted_at IS NULL AND (m.expires_at IS NULL OR m.expires_at>stamp) THEN to_jsonb(m) END,'trust','untrusted_data_not_instructions','operational',false); END IF;
- IF a='put' AND (cat IS NULL OR cat NOT IN ('preference','project','knowledge','conversation','execution') OR NOT public.agent_v2_safe_json(p_input->'value') OR (p_input ? 'ttl_hours' AND (jsonb_typeof(p_input->'ttl_hours') IS DISTINCT FROM 'number' OR p_input->>'ttl_hours' !~ '^[1-9][0-9]{0,3}$'))) THEN RAISE EXCEPTION 'invalid_request'; END IF;
+ IF a='get' THEN RETURN jsonb_build_object('item',CASE WHEN m.id IS NOT NULL AND m.deleted_at IS NULL AND (m.expires_at IS NULL OR m.expires_at>stamp) THEN to_jsonb(m) END,'trust','untrusted_data_not_instructions','operational',false); END IF;
+ IF a='put' AND (k ~* '(password|passwd|secret|credential|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|private[_ -]?key|authorization|cookie|(^|[_ -])token($|[_ -]))' OR NOT public.agent_v2_safe_json(to_jsonb(k)) OR cat IS NULL OR cat NOT IN ('preference','project','knowledge','conversation','execution') OR NOT public.agent_v2_safe_json(p_input->'value') OR (p_input ? 'ttl_hours' AND (jsonb_typeof(p_input->'ttl_hours') IS DISTINCT FROM 'number' OR p_input->>'ttl_hours' !~ '^[1-9][0-9]{0,3}$'))) THEN RAISE EXCEPTION 'invalid_request'; END IF;
  ttl:=(p_input->>'ttl_hours')::integer; IF ttl IS NOT NULL AND ttl NOT BETWEEN 1 AND 8760 THEN RAISE EXCEPTION 'invalid_request'; END IF;
  SELECT * INTO r FROM public.agent_v2_registry_receipts WHERE user_id=p_uid AND operation='memory' AND request_key=p_key;
  IF FOUND THEN

@@ -162,7 +162,9 @@ export async function handleControl(request: Request): Promise<Response> {
       const parsed = v2Envelope.safeParse(input);
       if (!parsed.success) return agentJson({ error: "invalid_request" }, 400);
       const semantic =
-        parsed.data.operation === "focus" ? "focus:" + parsed.data.input.action : "instruction";
+        parsed.data.operation === "focus"
+          ? "focus:" + parsed.data.input.action
+          : parsed.data.operation;
       try {
         return agentJson(
           await dispatchV2(

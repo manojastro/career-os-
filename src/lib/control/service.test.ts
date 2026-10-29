@@ -122,6 +122,26 @@ describe("owner HTTP boundary", () => {
           .status,
       ).toBe(403);
   });
+  it("binds registry provenance to a stable operation identity independent of model keys", async () => {
+    const envelope = {
+      operation: "memory",
+      input: { action: "put", category: "knowledge", key: "one", value: "safe" },
+    };
+    expect((await handleControl(request("v2", envelope))).status).toBe(200);
+    const key = fixture.v2?.context.requestKey;
+    expect(key).toMatch(/:v2:memory$/);
+    await handleControl(request("v2", { ...envelope, input: { ...envelope.input, key: "two" } }));
+    expect(fixture.v2?.context.requestKey).toBe(key);
+    expect(
+      (
+        await handleControl(
+          request("v2", { ...envelope, input: { ...envelope.input, source: "web" } }),
+        )
+      ).status,
+    ).toBe(400);
+    await handleControl(request("v2", { operation: "documents", input: { action: "list" } }));
+    expect(fixture.v2?.context.requestKey).toMatch(/:v2:documents$/);
+  });
   it("passes only a trusted actual reply mapping to the learning transaction", async () => {
     fixture.text = "Completed it in 45 minutes";
     fixture.reply = "40";

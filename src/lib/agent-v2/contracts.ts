@@ -33,7 +33,7 @@ const normalizedKey = z
   .transform((v) => v.replace(/\s+/g, " ").toLowerCase());
 const version = z.number().int().min(1).max(999999999);
 const secretField =
-  /(password|passwd|secret|credential|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|private[_ -]?key|authorization|cookie)/i;
+  /(password|passwd|secret|credential|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|private[_ -]?key|authorization|cookie|(^|[_ -])token($|[_ -]))/i;
 const secretValue =
   /(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|AIza[A-Za-z0-9_-]{20,}|AKIA[A-Z0-9]{16}|-----BEGIN .*PRIVATE KEY|bearer\s+[A-Za-z0-9._-]{12,}|(password|secret|token|api[_ -]?key)\s*[:=]\s*\S+)/i;
 function safeFact(value: unknown, depth = 0): boolean {
@@ -44,10 +44,22 @@ function safeFact(value: unknown, depth = 0): boolean {
     return Object.entries(value).every(([k, v]) => !secretField.test(k) && safeFact(v, depth + 1));
   return true;
 }
-const factValue = z.json().superRefine((value, ctx) => {
-  if (new TextEncoder().encode(JSON.stringify(value)).length > 8000 || !safeFact(value))
+const factValue = z.preprocess((value, ctx) => {
+  try {
+    if (!safeFact(value) || new TextEncoder().encode(JSON.stringify(value)).length > 8000) {
+      ctx.addIssue({ code: "custom", message: "invalid_memory_value" });
+      return z.NEVER;
+    }
+  } catch {
     ctx.addIssue({ code: "custom", message: "invalid_memory_value" });
-});
+    return z.NEVER;
+  }
+  return value;
+}, z.json());
+const factKey = normalizedKey.refine(
+  (v) => !secretField.test(v) && !secretValue.test(v),
+  "invalid_memory_key",
+);
 export const memoryInput = z.discriminatedUnion("action", [
   z
     .object({
@@ -62,7 +74,7 @@ export const memoryInput = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("put"),
-      key: normalizedKey,
+      key: factKey,
       category,
       value: factValue,
       expected_version: version.optional(),
