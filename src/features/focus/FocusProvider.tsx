@@ -3,7 +3,7 @@ import { Pause, Play, Square, Check } from "lucide-react";
 import { Button, Dialog, minutesLabel } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/domain/types";
-import { aiHeaders } from "@/lib/ai-headers";
+import { useServerFocus } from "./useServerFocus";
 import { elapsedSeconds, restoreFocus, freezeFocus, type FocusState } from "@/lib/domain/focus";
 
 interface FocusContextValue {
@@ -12,7 +12,12 @@ interface FocusContextValue {
 }
 const FocusContext = createContext<FocusContextValue | null>(null);
 export function FocusProvider({ children }: { children: React.ReactNode }) {
-  const { data, demo, user, loading, update, recordFocus } = useStore();
+  const { data, demo, user, loading, update, recordFocus, refresh } = useStore();
+  const hosted = useServerFocus(
+    !demo && !loading ? (user?.id ?? null) : null,
+    () => void refresh({ silent: true }),
+  );
+  const [hostedOpen, setHostedOpen] = useState(false);
   const key = demo ? "career-os-focus:demo" : user ? "career-os-focus:" + user.id : null;
   const [session, setSession] = useState<FocusState | null>(null),
     [clock, setClock] = useState(Date.now),
@@ -21,7 +26,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
   const current = useRef<FocusState | null>(null),
     savingRef = useRef(false),
     scope = useRef<string | null>(null);
-  const activeTask = data.tasks.find((t) => t.id === session?.taskId) ?? null;
+  const activeTask =
+    data.tasks.find((t) => t.id === (session?.taskId ?? hosted.session?.task_id)) ?? null;
   useEffect(() => {
     const reset = () => {
       if (demo) {
@@ -76,13 +82,18 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", receive);
   }, [key, demo]);
   useEffect(() => {
-    if (!session?.runningSince) return;
+    if (!session?.runningSince && !hosted.session?.running_since) return;
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [session?.runningSince]);
+  }, [session?.runningSince, hosted.session?.running_since]);
   const start = (task: Task) => {
     if (current.current) {
       setError("Finish or discard the current Focus session before starting another.");
+      return;
+    }
+    if (!demo) {
+      setHostedOpen(true);
+      if (!hosted.session) void hosted.mutate({ action: "start", task_id: task.id });
       return;
     }
     try {
@@ -145,9 +156,100 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }
   };
   const seconds = session ? elapsedSeconds(session, clock) : 0;
+  const hostedSeconds = hosted.session
+    ? Math.floor(
+        (hosted.session.elapsed_ms +
+          (hosted.session.running_since
+            ? Math.max(0, clock + hosted.offset - Date.parse(hosted.session.running_since))
+            : 0)) /
+          1000,
+      )
+    : 0;
   return (
     <FocusContext.Provider value={{ start, activeTask }}>
       {children}
+      {!demo && (hosted.session || hosted.pending || hosted.error) && (
+        <div className="alert" role="status">
+          {hosted.session
+            ? `Focus ${hosted.session.state}: ${data.tasks.find((t) => t.id === hosted.session?.task_id)?.title ?? "Task unavailable"}`
+            : "Shared Focus"}
+          <Button onClick={() => setHostedOpen(true)}>Open Focus</Button>
+        </div>
+      )}
+      {!demo && hostedOpen && !session && (
+        <Dialog title="Shared Focus session" onClose={() => setHostedOpen(false)}>
+          <h3>{activeTask?.title ?? "Shared Focus"}</h3>
+          {hosted.session && (
+            <p>
+              Elapsed: {String(Math.floor(hostedSeconds / 3600)).padStart(2, "0")}:
+              {String(Math.floor(hostedSeconds / 60) % 60).padStart(2, "0")}:
+              {String(hostedSeconds % 60).padStart(2, "0")}
+            </p>
+          )}
+          {hosted.error && <p role="alert">{hosted.error}</p>}
+          {hosted.pending && <p>The original request is retained for a safe retry.</p>}
+          <div className="form-actions">
+            {hosted.rejected && (
+              <Button onClick={hosted.dismissRejected}>Dismiss rejected request</Button>
+            )}
+            {hosted.pending ? (
+              <Button disabled={hosted.busy} onClick={() => void hosted.mutate()}>
+                Retry request
+              </Button>
+            ) : (
+              hosted.session && (
+                <>
+                  <Button
+                    disabled={hosted.busy}
+                    onClick={() =>
+                      void hosted.mutate({
+                        action: hosted.session!.state === "running" ? "pause" : "resume",
+                        session_id: hosted.session!.id,
+                      })
+                    }
+                  >
+                    {hosted.session.state === "running" ? "Pause" : "Resume"}
+                  </Button>
+                  <Button
+                    disabled={hosted.busy}
+                    onClick={() =>
+                      void hosted.mutate({
+                        action: "finish",
+                        session_id: hosted.session!.id,
+                        complete: false,
+                      })
+                    }
+                  >
+                    Stop &amp; save
+                  </Button>
+                  <Button
+                    disabled={hosted.busy}
+                    onClick={() =>
+                      void hosted.mutate({
+                        action: "finish",
+                        session_id: hosted.session!.id,
+                        complete: true,
+                      })
+                    }
+                  >
+                    Complete task
+                  </Button>
+                  <Button
+                    disabled={hosted.busy}
+                    onClick={() => {
+                      if (window.confirm("Discard this interval without recording minutes?"))
+                        void hosted.mutate({ action: "cancel", session_id: hosted.session!.id });
+                    }}
+                  >
+                    Discard timer
+                  </Button>
+                </>
+              )
+            )}
+            <Button onClick={() => setHostedOpen(false)}>Minimize</Button>
+          </div>
+        </Dialog>
+      )}
       {error && !session && (
         <div role="alert" className="alert">
           {error}
@@ -161,6 +263,14 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
           }}
         >
           <h3>{activeTask?.title ?? "This task is unavailable. No time has been recorded."}</h3>
+          {!demo && (
+            <p>
+              Recovered local timer. Finish or discard it before starting shared Focus.
+              {hosted.session
+                ? " A shared interval also exists; resolve it before saving overlapping time."
+                : ""}
+            </p>
+          )}
           <div className="row-between">
             <span className="muted">Elapsed</span>
             <strong style={{ fontSize: 30, fontVariantNumeric: "tabular-nums" }}>

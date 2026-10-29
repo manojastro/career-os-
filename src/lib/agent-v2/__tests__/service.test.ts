@@ -13,6 +13,7 @@ it("strictly rejects transport and timing overrides", () => {
   ).toBe(false);
 });
 it("recognizes only bounded explicit owner instructions", () => {
+  expect(parseInstruction("done")).toEqual({ action: "finish", query: "" });
   expect(parseInstruction("I'm starting my LangGraph project now.")).toEqual({
     action: "start",
     query: "LangGraph",
@@ -27,6 +28,9 @@ it("recognizes only bounded explicit owner instructions", () => {
     title: "implementation of semantic caching",
     type: "Build",
   });
+  expect(
+    parseInstruction("Add learning Redis to LangGraph project with high priority."),
+  ).toMatchObject({ action: "add", type: "Learn", priority: "high", query: "LangGraph" });
   for (const text of [
     '"Start LangGraph"',
     "Should I start LangGraph?",

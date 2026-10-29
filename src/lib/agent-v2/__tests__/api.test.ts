@@ -38,7 +38,9 @@ it("authenticates before service access and bounds/rejects unknown web input", a
                 `SELECT ${name}(${Object.keys(params)
                   .map((_, i) => "$" + (i + 1))
                   .join(",")}) r`,
-                Object.values(params).map((v) => (typeof v === "object" ? JSON.stringify(v) : v)),
+                Object.values(params).map((v) =>
+                  v !== null && typeof v === "object" ? JSON.stringify(v) : v,
+                ),
               )
             ).rows[0].r,
             error: null,
@@ -74,4 +76,33 @@ it("authenticates before service access and bounds/rejects unknown web input", a
     (await handleV2(request({ ...input, input: { action: "start", task_id: task, minutes: 30 } })))
       .status,
   ).toBe(400);
+});
+it("uses original web instruction text and conflicts on changed text with the same request ID", async () => {
+  const body = {
+    request_id: crypto.randomUUID(),
+    text: "Start Fixture API task",
+    operation: "instruction",
+    input: {},
+  };
+  const first = await handleV2(request(body));
+  expect(first.status).toBe(200);
+  expect((await first.json()).session.task_id).toBe(task);
+  expect((await handleV2(request(body))).status).toBe(200);
+  expect((await handleV2(request({ ...body, text: body.text + "." }))).status).toBe(409);
+  for (const text of [
+    '"Start Fixture API task"',
+    "Should I start Fixture API task?",
+    "Don't start Fixture API task",
+    "Add Redis",
+  ]) {
+    expect(
+      (await (await handleV2(request({ ...body, request_id: crypto.randomUUID(), text }))).json())
+        .status,
+    ).toBe("needs_clarification");
+  }
+  await db.exec("RESET ROLE");
+  expect(
+    (await db.query<{ n: number }>("SELECT count(*)::int n FROM tasks WHERE user_id=$1", [uid]))
+      .rows[0].n,
+  ).toBe(1);
 });

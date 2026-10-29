@@ -44,6 +44,12 @@ it("shares a server interval across sources, excludes pause time and finalizes t
   await asRole(db, "authenticated");
   const paused = await call({ action: "pause", session_id: start.session!.id });
   expect(paused.session!.elapsed_ms).toBeGreaterThanOrEqual(125000);
+  await db.exec("RESET ROLE");
+  await db.query(
+    "UPDATE agent_v2_focus_intervals SET paused_at=now()-interval '3 hours',started_at=now()-interval '3 hours 130 seconds' WHERE id=$1",
+    [start.session!.id],
+  );
+  await asRole(db, "authenticated");
   await call({ action: "resume", session_id: start.session!.id });
   const input = { action: "finish", session_id: start.session!.id, complete: true };
   await call(input, "web:finish");
@@ -173,5 +179,35 @@ it("retains legacy drafts by rejecting overlap with a remotely started interval 
     ),
   ).rejects.toThrow("legacy_focus_overlap");
   await asRole(db, "authenticated");
+  await call({ action: "cancel", session_id: s.id });
+});
+it("keeps dependency-blocked completion atomic and separates request keys by owner", async () => {
+  const t = await newTask(),
+    dependency = await newTask();
+  await db.exec("RESET ROLE");
+  await db.query("INSERT INTO task_dependencies(user_id,task_id,depends_on_id) VALUES($1,$2,$3)", [
+    uid,
+    t,
+    dependency,
+  ]);
+  const otherTask = (
+    await db.query<{ id: string }>(
+      "INSERT INTO tasks(user_id,title) VALUES($1,'Other owner task') RETURNING id",
+      [other],
+    )
+  ).rows[0].id;
+  await asRole(db, "authenticated");
+  const s = (await call({ action: "start", task_id: t }, "web:shared-owner-key")).session!;
+  await expect(call({ action: "finish", session_id: s.id, complete: true })).rejects.toThrow(
+    "dependencies_incomplete",
+  );
+  await asRole(db, "authenticated", other);
+  const foreign = (
+    await call({ action: "start", task_id: otherTask }, "web:shared-owner-key", other)
+  ).session!;
+  expect(foreign.id).not.toBe(s.id);
+  await call({ action: "cancel", session_id: foreign.id }, "web:cancel-other", other);
+  await asRole(db, "authenticated");
+  expect((await call({ action: "status" })).session?.id).toBe(s.id);
   await call({ action: "cancel", session_id: s.id });
 });

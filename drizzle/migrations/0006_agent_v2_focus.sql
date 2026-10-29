@@ -125,24 +125,43 @@ GRANT SELECT ON public.agent_v2_instruction_receipts TO authenticated;
 GRANT ALL ON public.agent_v2_instruction_receipts TO service_role;
 CREATE FUNCTION public.agent_v2_instruction(p_uid uuid,p_key text,p_input jsonb,p_chat text DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE a text:=p_input->>'action'; q text:=lower(btrim(p_input->>'query')); candidates jsonb; pid uuid; tid uuid; selected uuid; s public.agent_v2_focus_intervals; old public.agent_v2_instruction_receipts; result jsonb; v_title text; payload_hash text:=md5(p_input::text||coalesce(p_chat,''));
+DECLARE a text:=p_input->>'action'; q text:=lower(btrim(p_input->>'query')); candidates jsonb; pid uuid; tid uuid; selected uuid; s public.agent_v2_focus_intervals; old public.agent_v2_instruction_receipts; result jsonb; v_title text; payload_hash text:=encode(sha256(convert_to(p_input::text||coalesce(p_chat,''),'UTF8')),'hex');
 BEGIN
  PERFORM public.learning_assert_user(p_uid);
  IF p_key IS NULL OR length(p_key) NOT BETWEEN 5 AND 180 OR p_key !~ '^(web|tg):[A-Za-z0-9:._-]+$' OR (p_key LIKE 'tg:%' AND coalesce(auth.role(),'')<>'service_role') OR (p_chat IS NOT NULL AND coalesce(auth.role(),'')<>'service_role') THEN RAISE EXCEPTION 'invalid_request'; END IF;
  IF a IS NULL OR a NOT IN ('start','finish','add') OR q IS NULL OR length(q)>300 OR jsonb_typeof(p_input) IS DISTINCT FROM 'object' OR
-  (a IN ('start','finish') AND p_input-'action'-'query'<>'{}') OR
-  (a='add' AND (p_input-'action'-'query'-'title'-'type'<>'{}' OR p_input->>'type' NOT IN ('Build','Learn') OR length(btrim(p_input->>'title')) NOT BETWEEN 2 AND 200)) THEN RAISE EXCEPTION 'invalid_request'; END IF;
+  (p_input ? 'text_hash' AND (p_input->>'text_hash') !~ '^[a-f0-9]{64}$') OR
+  (p_input ? 'priority' AND (p_input->>'priority') NOT IN ('low','medium','high')) OR
+  (a IN ('start','finish') AND p_input-'action'-'query'-'text_hash'<>'{}') OR
+  (a='add' AND (p_input-'action'-'query'-'title'-'type'-'priority'-'text_hash'<>'{}' OR p_input->>'type' NOT IN ('Build','Learn') OR length(btrim(p_input->>'title')) NOT BETWEEN 2 AND 200)) THEN RAISE EXCEPTION 'invalid_request'; END IF;
  SELECT * INTO old FROM public.agent_v2_instruction_receipts WHERE user_id=p_uid AND request_key=p_key;
  IF FOUND THEN
   IF old.payload_hash<>payload_hash THEN RAISE EXCEPTION 'idempotency_conflict'; END IF;
+  IF old.result ? 'task_id' THEN RETURN old.result||jsonb_build_object('task',(SELECT jsonb_build_object('id',id,'title',title,'type',type,'priority',priority,'project_id',project_id,'status',status) FROM tasks WHERE id=(old.result->>'task_id')::uuid AND user_id=p_uid)); END IF;
   RETURN old.result;
  END IF;
  SELECT * INTO s FROM public.agent_v2_focus_intervals WHERE user_id=p_uid AND state IN ('running','paused');
  IF p_chat IS NOT NULL THEN SELECT selected_id INTO selected FROM public.control_context WHERE user_id=p_uid AND chat_ref=p_chat AND updated_at>now()-interval '30 minutes'; END IF;
  IF a='finish' THEN
-  IF s.id IS NOT NULL AND (q='' OR EXISTS(SELECT 1 FROM tasks t LEFT JOIN projects p ON p.id=t.project_id AND p.user_id=p_uid AND p.deleted_at IS NULL WHERE t.id=s.task_id AND t.user_id=p_uid AND t.deleted_at IS NULL AND (lower(t.title)=q OR lower(p.name)=q OR t.id::text=q))) THEN
+  -- Exact task identity outranks a project name and any active-context default.
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',id,'label',title)),'[]') INTO candidates FROM (SELECT id,title FROM tasks WHERE user_id=p_uid AND deleted_at IS NULL AND q<>'' AND (lower(title)=q OR id::text=q) ORDER BY title LIMIT 100) t;
+  IF jsonb_array_length(candidates)>1 THEN RETURN jsonb_build_object('status','needs_clarification','message','Choose one existing task to finish.','candidates',candidates); END IF;
+  IF jsonb_array_length(candidates)=1 THEN tid:=(candidates->0->>'id')::uuid; END IF;
+  IF tid IS NULL AND q<>'' THEN
+   SELECT coalesce(jsonb_agg(jsonb_build_object('id',t.id,'label',t.title)),'[]') INTO candidates FROM tasks t JOIN projects p ON p.id=t.project_id AND p.user_id=p_uid AND p.deleted_at IS NULL WHERE t.user_id=p_uid AND t.deleted_at IS NULL AND lower(p.name)=q;
+   IF jsonb_array_length(candidates)=1 THEN tid:=(candidates->0->>'id')::uuid; END IF;
+  END IF;
+  IF s.id IS NOT NULL AND (q='' OR tid=s.task_id) THEN
    result:=public.agent_v2_focus(p_uid,p_key||':focus',jsonb_build_object('action','finish','session_id',s.id,'complete',true));
-  ELSE RETURN jsonb_build_object('status','needs_clarification','message','Select the active task to finish.','candidates',CASE WHEN s.id IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('id',s.task_id,'session_id',s.id)) END); END IF;
+  ELSE
+   IF tid IS NULL THEN RETURN jsonb_build_object('status','needs_clarification','message','Choose one existing task to finish.','candidates',candidates); END IF;
+   -- Explicit named task outranks context. No timer means no invented duration.
+   UPDATE tasks SET status='completed',completed_at=coalesce(completed_at,now()) WHERE id=tid AND user_id=p_uid AND deleted_at IS NULL;
+   UPDATE learning_assignments SET status='completed',completed_at=coalesce(completed_at,now()) WHERE task_id=tid AND user_id=p_uid AND deleted_at IS NULL AND status NOT IN ('cancelled','rescheduled');
+   result:=jsonb_build_object('status','completed','task_id',tid,'minutes',0);
+  END IF;
+ ELSIF a='start' AND q='' AND s.id IS NOT NULL THEN
+  result:=public.agent_v2_focus(p_uid,p_key||':focus',jsonb_build_object('action','start','task_id',s.task_id));
  ELSE
   SELECT coalesce(jsonb_agg(jsonb_build_object('id',id,'label',name)),'[]') INTO candidates FROM (SELECT id,name FROM projects WHERE user_id=p_uid AND deleted_at IS NULL AND (q='' OR lower(name)=q OR id::text=q) ORDER BY name LIMIT 100) p;
   IF q='' AND s.id IS NOT NULL THEN SELECT project_id INTO pid FROM tasks WHERE id=s.task_id AND user_id=p_uid AND deleted_at IS NULL; END IF;
@@ -155,7 +174,7 @@ BEGIN
    IF pid IS NULL THEN RETURN jsonb_build_object('status','needs_clarification','message','Choose one project.','candidates',candidates); END IF;
    v_title:=regexp_replace(btrim(p_input->>'title'),'\s+',' ','g');
    SELECT id INTO tid FROM tasks WHERE user_id=p_uid AND project_id=pid AND deleted_at IS NULL AND lower(regexp_replace(btrim(tasks.title),'\s+',' ','g'))=lower(v_title) ORDER BY created_at LIMIT 1;
-   IF tid IS NULL THEN INSERT INTO tasks(user_id,project_id,title,type) VALUES(p_uid,pid,v_title,p_input->>'type') RETURNING id INTO tid; END IF;
+   IF tid IS NULL THEN INSERT INTO tasks(user_id,project_id,title,type,priority) VALUES(p_uid,pid,v_title,p_input->>'type',coalesce(p_input->>'priority','medium')) RETURNING id INTO tid; END IF;
    result:=jsonb_build_object('status','completed','task_id',tid,'project_id',pid);
   ELSE
    SELECT coalesce(jsonb_agg(jsonb_build_object('id',id,'label',title)),'[]') INTO candidates FROM (SELECT id,title FROM tasks WHERE user_id=p_uid AND deleted_at IS NULL AND status<>'completed' AND (lower(title)=q OR id::text=q OR project_id=pid OR (q='' AND id=selected)) ORDER BY title LIMIT 100) t;
@@ -164,6 +183,7 @@ BEGIN
   END IF;
  END IF;
  INSERT INTO public.agent_v2_instruction_receipts(user_id,request_key,payload_hash,result) VALUES(p_uid,p_key,payload_hash,result);
+ IF result ? 'task_id' THEN RETURN result||jsonb_build_object('task',(SELECT jsonb_build_object('id',id,'title',title,'type',type,'priority',priority,'project_id',project_id,'status',status) FROM tasks WHERE id=(result->>'task_id')::uuid AND user_id=p_uid)); END IF;
  RETURN result;
 END $$;
 REVOKE ALL ON FUNCTION public.agent_v2_instruction(uuid,text,jsonb,text) FROM PUBLIC,anon;
