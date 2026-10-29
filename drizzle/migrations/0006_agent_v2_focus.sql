@@ -50,7 +50,7 @@ REVOKE ALL ON FUNCTION public.agent_v2_focus_ledger_guard() FROM PUBLIC,anon,aut
 
 CREATE FUNCTION public.agent_v2_focus(p_uid uuid,p_key text,p_input jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE s public.agent_v2_focus_intervals; receipt public.agent_v2_focus_receipts; a text:=p_input->>'action'; stamp timestamptz:=clock_timestamp(); result jsonb; mins integer; src text;
+DECLARE s public.agent_v2_focus_intervals; receipt public.agent_v2_focus_receipts; a text:=p_input->>'action'; stamp timestamptz; result jsonb; mins integer; src text;
 BEGIN
  PERFORM public.learning_assert_user(p_uid);
  IF p_key IS NULL OR length(p_key) NOT BETWEEN 5 AND 200 OR p_key !~ '^(web|tg):[A-Za-z0-9:._-]+$' THEN RAISE EXCEPTION 'invalid_request'; END IF;
@@ -63,6 +63,7 @@ BEGIN
     (a='finish' AND (p_input-'action'-'session_id'-'complete'<>'{}' OR jsonb_typeof(p_input->'session_id') IS DISTINCT FROM 'string' OR jsonb_typeof(p_input->'complete') IS DISTINCT FROM 'boolean')) THEN RAISE EXCEPTION 'invalid_request'; END IF;
  IF a='status' THEN
   SELECT * INTO s FROM public.agent_v2_focus_intervals WHERE user_id=p_uid AND state IN ('running','paused');
+  stamp:=clock_timestamp();
   RETURN jsonb_build_object('session',CASE WHEN s.id IS NULL THEN NULL ELSE to_jsonb(s) END,'server_now',stamp);
  END IF;
  SELECT * INTO receipt FROM public.agent_v2_focus_receipts WHERE user_id=p_uid AND request_key=p_key;
@@ -75,6 +76,8 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'task_not_found'; END IF;
   SELECT * INTO s FROM public.agent_v2_focus_intervals WHERE user_id=p_uid AND state IN ('running','paused') FOR UPDATE;
   IF s.id IS NOT NULL AND s.task_id<>(p_input->>'task_id')::uuid THEN RAISE EXCEPTION 'active_focus_conflict'; END IF;
+  -- Measure only after owner, task and interval locks have been acquired.
+  stamp:=clock_timestamp();
   IF s.id IS NULL THEN
    INSERT INTO public.agent_v2_focus_intervals(user_id,task_id,state,started_at,running_since,source,request_key) VALUES(p_uid,(p_input->>'task_id')::uuid,'running',stamp,stamp,src,p_key) RETURNING * INTO s;
    UPDATE public.tasks SET status='doing' WHERE id=s.task_id AND user_id=p_uid;
@@ -86,6 +89,10 @@ BEGIN
    PERFORM 1 FROM public.tasks WHERE id=s.task_id AND user_id=p_uid AND deleted_at IS NULL FOR UPDATE;
    IF NOT FOUND THEN RAISE EXCEPTION 'task_not_found'; END IF;
   END IF;
+  IF a='finish' THEN
+   PERFORM 1 FROM public.learning_assignments WHERE task_id=s.task_id AND user_id=p_uid AND deleted_at IS NULL AND status NOT IN ('cancelled','rescheduled') FOR UPDATE;
+  END IF;
+  stamp:=clock_timestamp();
   IF s.running_since IS NOT NULL THEN s.elapsed_ms:=s.elapsed_ms+greatest(0,floor(extract(epoch FROM stamp-s.running_since)*1000))::bigint; END IF;
   s.running_since:=NULL;
   IF a='pause' THEN s.state:='paused'; s.paused_at:=stamp;
@@ -201,7 +208,7 @@ begin
     if prior.user_id <> p_user_id or prior.task_id is distinct from p_task_id or prior.started_at is distinct from p_started_at or prior.ended_at is distinct from p_ended_at or prior.duration_minutes is distinct from p_minutes or prior.completion_requested is distinct from p_complete then raise exception 'focus_identity_conflict'; end if;
     return jsonb_build_object('replayed', true);
   end if;
-  if p_minutes is null or p_minutes not between 1 and 600 or p_ended_at < p_started_at or p_ended_at > now() + interval '1 minute' then raise exception 'invalid_focus_session'; end if;
+  if p_minutes is null or p_minutes not between 1 and 600 or p_ended_at < p_started_at or p_ended_at > clock_timestamp() + interval '1 minute' then raise exception 'invalid_focus_session'; end if;
   select * into t from public.tasks where id = p_task_id and user_id = p_user_id and deleted_at is null for update;
   if not found then raise exception 'task_not_found'; end if;
   insert into public.focus_sessions(id, user_id, task_id, started_at, ended_at, duration_minutes, note,completion_requested) values (p_session_id, p_user_id, p_task_id, p_started_at, p_ended_at, p_minutes, '',p_complete);

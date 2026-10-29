@@ -26,19 +26,27 @@ export function useServerFocus(uid: string | null, onChanged: () => void) {
     flight = useRef(false),
     scope = useRef(uid),
     revision = useRef(0),
+    statusSequence = useRef(0),
     last = useRef("");
   const changed = useRef(onChanged);
   changed.current = onChanged;
-  scope.current = uid;
+  if (scope.current !== uid) {
+    scope.current = uid;
+    revision.current++;
+  }
   const key = uid ? "career-os-server-focus-pending:" + uid : null;
   const send = useCallback(
-    async (input: FocusInput, request_id: string = crypto.randomUUID()): Promise<FocusResult> => {
+    async (input: FocusInput, request_id: string, current: () => boolean): Promise<FocusResult> => {
+      const headers = await aiHeaders();
+      if (!current()) throw new Error("superseded_focus_request");
       const response = await fetch("/api/v2", {
         method: "POST",
-        headers: await aiHeaders(),
+        headers,
         body: JSON.stringify({ request_id, text: "", operation: "focus", input }),
       });
+      if (!current()) throw new Error("superseded_focus_request");
       const result = await response.json();
+      if (!current()) throw new Error("superseded_focus_request");
       if (!response.ok)
         throw new FocusRequestError(
           typeof result.error === "string" ? result.error : "Focus request failed",
@@ -64,9 +72,14 @@ export function useServerFocus(uid: string | null, onChanged: () => void) {
   const refresh = useCallback(async () => {
     if (!uid || flight.current) return;
     const generation = revision.current;
+    const sequence = ++statusSequence.current;
+    const current = () =>
+      scope.current === uid &&
+      revision.current === generation &&
+      statusSequence.current === sequence;
     try {
-      const result = await send({ action: "status" });
-      if (scope.current === uid && revision.current === generation) {
+      const result = await send({ action: "status" }, crypto.randomUUID(), current);
+      if (current()) {
         apply(result);
         setError((previous) =>
           previous === "Shared Focus is unavailable. Your timer and pending request are retained."
@@ -75,11 +88,12 @@ export function useServerFocus(uid: string | null, onChanged: () => void) {
         );
       }
     } catch {
-      if (scope.current === uid)
+      if (current())
         setError("Shared Focus is unavailable. Your timer and pending request are retained.");
     }
   }, [uid, send, apply]);
   useEffect(() => {
+    const lifecycleEpoch = revision;
     setSession(null);
     setError("");
     setRejected(false);
@@ -88,6 +102,7 @@ export function useServerFocus(uid: string | null, onChanged: () => void) {
     setBusy(false);
     flight.current = false;
     revision.current++;
+    last.current = "";
     if (!key) return;
     try {
       const raw = JSON.parse(localStorage.getItem(key) ?? "null") as Pending | null;
@@ -113,6 +128,7 @@ export function useServerFocus(uid: string | null, onChanged: () => void) {
     document.addEventListener("visibilitychange", foreground);
     window.addEventListener("career-os-focus-changed", foreground);
     return () => {
+      lifecycleEpoch.current++;
       clearInterval(timer);
       window.removeEventListener("focus", foreground);
       document.removeEventListener("visibilitychange", foreground);
@@ -133,28 +149,35 @@ export function useServerFocus(uid: string | null, onChanged: () => void) {
       setBusy(true);
       setError("");
       setRejected(false);
-      revision.current++;
+      const generation = ++revision.current;
+      const current = () => scope.current === uid && revision.current === generation;
       try {
         localStorage.setItem(key, JSON.stringify(request));
         pendingRef.current = request;
         setPending(request);
-        await send(request.input, request.request_id);
-        if (scope.current !== uid) return;
+        await send(request.input, request.request_id, current);
+        if (!current()) return;
         localStorage.removeItem(key);
         pendingRef.current = null;
         setPending(null);
         // Re-read current state: a receipt can describe a session another channel already finished.
-        apply(await send({ action: "status" }));
+        const sequence = ++statusSequence.current;
+        const statusCurrent = () => current() && statusSequence.current === sequence;
+        const result = await send({ action: "status" }, crypto.randomUUID(), statusCurrent);
+        if (!statusCurrent()) return;
+        apply(result);
+        if (!current()) return;
         changed.current();
+        if (!current()) return;
         window.dispatchEvent(new Event("career-os-focus-changed"));
       } catch (e) {
-        if (scope.current === uid) setRejected(e instanceof FocusRequestError && e.rejected);
-        if (scope.current === uid)
+        if (current()) setRejected(e instanceof FocusRequestError && e.rejected);
+        if (current())
           setError(
             e instanceof Error ? e.message : "Focus request failed; retry the retained request.",
           );
       } finally {
-        if (scope.current === uid) {
+        if (current()) {
           flight.current = false;
           setBusy(false);
         }
