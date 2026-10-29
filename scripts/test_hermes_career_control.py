@@ -65,7 +65,8 @@ class BoundaryTests(unittest.TestCase):
  def test_agent_has_strict_discriminated_schema_and_uses_existing_transport(self):
   self.assertIn("agent",plugin.ACTIONS)
   schema=plugin.SCHEMAS["agent"]
-  self.assertEqual(len(schema["oneOf"]),2)
+  self.assertEqual(len(schema["oneOf"]),4)
+  self.assertEqual({v["properties"]["operation"]["const"] for v in schema["oneOf"]},{"focus","instruction","memory","documents"})
   for variant in schema["oneOf"]:self.assertFalse(variant["additionalProperties"])
   with patch.object(plugin,"request",return_value={"status":"ready"}) as req,self.context():
    plugin.ingress(event=self.event())
