@@ -156,6 +156,35 @@ export async function handleControl(request: Request): Promise<Response> {
       .maybeSingle();
     if (messageError || !message || Date.parse(message.created_at) < Date.now() - 1800000)
       throw new Error("inbound_context_required");
+    if (action === "v2") {
+      const { dispatchV2 } = await import("@/lib/agent-v2/service.server");
+      const { v2Envelope, V2Error } = await import("@/lib/agent-v2/contracts");
+      const parsed = v2Envelope.safeParse(input);
+      if (!parsed.success) return agentJson({ error: "invalid_request" }, 400);
+      const semantic =
+        parsed.data.operation === "focus" ? "focus:" + parsed.data.input.action : "instruction";
+      try {
+        return agentJson(
+          await dispatchV2(
+            db,
+            {
+              uid,
+              source: "telegram",
+              text: message.text,
+              chatRef: chat,
+              messageRef: identity.message,
+              requestKey: "tg:" + chat + ":" + identity.message + ":v2:" + semantic,
+            },
+            parsed.data,
+          ),
+        );
+      } catch (e) {
+        return agentJson(
+          { error: e instanceof V2Error ? e.code : "v2_request_failed" },
+          e instanceof V2Error ? e.status : 500,
+        );
+      }
+    }
     if (action === "catalog") {
       const entity = input.entity ? String(input.entity) : null;
       if (entity && !Object.hasOwn(registry, entity)) throw new Error("unsupported_entity");

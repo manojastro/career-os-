@@ -5,6 +5,13 @@ const fixture = vi.hoisted(() => ({
   text: "Show my tasks",
   reply: null as string | null,
   feedback: null as Record<string, unknown> | null,
+  v2: null as { context: Record<string, unknown>; input: unknown } | null,
+}));
+vi.mock("@/lib/agent-v2/service.server", () => ({
+  dispatchV2: async (_db: unknown, context: Record<string, unknown>, input: unknown) => {
+    fixture.v2 = { context, input };
+    return { status: "completed" };
+  },
 }));
 vi.mock("@/lib/learning/service.server", () => ({
   applyFeedback: async (_db: unknown, _uid: string, input: Record<string, unknown>) => {
@@ -78,6 +85,43 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("owner HTTP boundary", () => {
+  it("binds V2 to original actual ingress and payload-independent semantic identity", async () => {
+    fixture.text = "I'm starting my LangGraph project now.";
+    expect(
+      (await handleControl(request("v2", { operation: "instruction", input: {} }))).status,
+    ).toBe(200);
+    expect(fixture.v2?.context).toMatchObject({
+      text: fixture.text,
+      source: "telegram",
+      messageRef: "42",
+    });
+    await handleControl(
+      request("v2", {
+        operation: "focus",
+        input: { action: "start", task_id: crypto.randomUUID() },
+      }),
+    );
+    const key = fixture.v2?.context.requestKey;
+    await handleControl(
+      request("v2", {
+        operation: "focus",
+        input: { action: "start", task_id: crypto.randomUUID() },
+      }),
+    );
+    expect(fixture.v2?.context.requestKey).toBe(key);
+    expect(
+      (
+        await handleControl(
+          request("v2", { operation: "instruction", input: { text: "override" } }),
+        )
+      ).status,
+    ).toBe(400);
+    for (const identity of [{ sender: "456" }, { chat_type: "group" }])
+      expect(
+        (await handleControl(request("v2", { operation: "instruction", input: {} }, identity)))
+          .status,
+      ).toBe(403);
+  });
   it("passes only a trusted actual reply mapping to the learning transaction", async () => {
     fixture.text = "Completed it in 45 minutes";
     fixture.reply = "40";

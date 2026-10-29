@@ -61,7 +61,17 @@ class BoundaryTests(unittest.TestCase):
    def register_tool(self,**kw):self.tools.append(kw)
    def register_hook(self,n,fn):self.hooks.append(n)
    def register_system_prompt_section(self,*a,**kw):pass
-  c=Ctx();plugin.register(c);self.assertEqual(len(c.tools),15);self.assertTrue(all(t["toolset"]=="career-os-control" for t in c.tools));self.assertIn("pre_tool_call",c.hooks)
+  c=Ctx();plugin.register(c);self.assertEqual(len(c.tools),16);self.assertTrue(all(t["toolset"]=="career-os-control" for t in c.tools));self.assertIn("pre_tool_call",c.hooks)
+ def test_agent_has_strict_discriminated_schema_and_uses_existing_transport(self):
+  self.assertIn("agent",plugin.ACTIONS)
+  schema=plugin.SCHEMAS["agent"]
+  self.assertEqual(len(schema["oneOf"]),2)
+  for variant in schema["oneOf"]:self.assertFalse(variant["additionalProperties"])
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req,self.context():
+   plugin.ingress(event=self.event())
+   plugin.handler("agent",{"operation":"instruction","input":{}})
+   self.assertEqual(req.call_args.args[1],"v2")
+   self.assertEqual(req.call_args.args[0]["message"],"42")
  def test_api_failure_does_not_fabricate_completion(self):
   with patch.object(plugin,"request",return_value={"error":"not_deployed","http_status":404}):
    self.assertIn("no changes were made",plugin.ingress(event=self.event())["text"])
