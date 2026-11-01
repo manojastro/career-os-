@@ -13,7 +13,11 @@ const request = (body: unknown) =>
     body: JSON.stringify(body),
   });
 beforeAll(async () => {
-  db = await createV2Database(["0006_agent_v2_focus.sql", "0007_agent_v2_memory_documents.sql"]);
+  db = await createV2Database([
+    "0006_agent_v2_focus.sql",
+    "0007_agent_v2_memory_documents.sql",
+    "0008_agent_v2_workflows.sql",
+  ]);
   task = (
     await db.query<{ id: string }>(
       "INSERT INTO tasks(user_id,title) VALUES($1,'Fixture API task') RETURNING id",
@@ -145,4 +149,58 @@ it("exposes persisted memory and unverified documents through strict owner web A
   );
   expect(doc.status).toBe(200);
   expect((await doc.json()).item.status).toBe("unverified");
+});
+it("prepares, confirms and runs a durable compound plan through strict web API", async () => {
+  await asRole(db, "authenticated");
+  const send = async (input: unknown) =>
+    handleV2(
+      request({
+        request_id: crypto.randomUUID(),
+        text: "Create a task and remember a fact",
+        operation: "workflow",
+        input,
+      }),
+    );
+  const prepared = await send({
+    action: "prepare",
+    steps: [
+      { id: "task", kind: "task.create", depends_on: [], input: { title: "API workflow task" } },
+      {
+        id: "fact",
+        kind: "memory.put",
+        depends_on: ["task"],
+        input: { key: "api workflow", category: "knowledge", value: "saved" },
+      },
+    ],
+  });
+  expect(prepared.status).toBe(200);
+  const p = await prepared.json();
+  expect(p.state).toBe("awaiting_confirmation");
+  expect((await send({ action: "run", id: p.id, confirmed: true })).status).toBe(400);
+  expect(
+    (await (await send({ action: "run", id: p.id })).json()).steps.every(
+      (s: { status: string }) => s.status === "pending",
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await send({
+        action: "confirm",
+        id: p.id,
+        approval_id: p.approval_id,
+        expected_plan_hash: p.plan_hash,
+        confirm: true,
+      })
+    ).status,
+  ).toBe(200);
+  const finished = await send({ action: "run", id: p.id });
+  expect(finished.status).toBe(200);
+  const result = await finished.json();
+  expect(result.state).toBe("completed");
+  expect(result.steps.every((s: { status: string }) => s.status === "succeeded")).toBe(true);
+  expect(
+    (await (await send({ action: "resume", id: p.id })).json()).steps.map(
+      (s: { result: { id: string } }) => s.result.id,
+    ),
+  ).toEqual(result.steps.map((s: { result: { id: string } }) => s.result.id));
 });

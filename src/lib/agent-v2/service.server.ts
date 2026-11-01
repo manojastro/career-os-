@@ -4,7 +4,18 @@ import { focus } from "./focus.server";
 import { instruction } from "./instruction.server";
 import { memory } from "./memory.server";
 import { documents } from "./documents.server";
+import { workflow } from "./workflows.server";
 const safe = new Set([
+  "approval_stale_repreview",
+  "invalid_plan",
+  "invalid_dependency",
+  "invalid_binding",
+  "invalid_confirmation",
+  "workflow_not_found",
+  "stale_lease",
+  "unsupported_kind",
+  "source_approval_required",
+  "inbound_context_required",
   "version_conflict",
   "record_forgotten",
   "alias_conflict",
@@ -24,6 +35,7 @@ export async function dispatchV2(db: Db, context: V2Context, input: unknown): Pr
   const parsed = v2Envelope.safeParse(input);
   if (!parsed.success) throw new V2Error("invalid_request");
   try {
+    if (parsed.data.operation === "workflow") return await workflow(db, context, parsed.data.input);
     if (parsed.data.operation === "memory") return await memory(db, context, parsed.data.input);
     if (parsed.data.operation === "documents")
       return await documents(db, context, parsed.data.input);

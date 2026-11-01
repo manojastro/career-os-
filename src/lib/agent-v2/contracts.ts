@@ -129,7 +129,137 @@ export const documentsInput = z.discriminatedUnion("action", [
 ]);
 export type MemoryInput = z.infer<typeof memoryInput>;
 export type DocumentsInput = z.infer<typeof documentsInput>;
+const stepId = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
+const boundId = z.union([z.uuid(), z.object({ step: stepId, alias: z.literal("id") }).strict()]);
+const taskFields = {
+  title: z.string().trim().min(1).max(500),
+  description: z.string().max(4000).optional(),
+  project_id: boundId.nullable().optional(),
+  type: z
+    .enum([
+      "Learn",
+      "Build",
+      "Practice",
+      "Interview",
+      "Network",
+      "Apply",
+      "Research",
+      "Document",
+      "Admin",
+    ])
+    .optional(),
+  priority: z.enum(["low", "medium", "high"]).optional(),
+};
+const commonStep = { id: stepId, depends_on: z.array(stepId).max(12) };
+export const workflowStep = z.discriminatedUnion("kind", [
+  z
+    .object({ ...commonStep, kind: z.literal("task.create"), input: z.object(taskFields).strict() })
+    .strict(),
+  z
+    .object({
+      ...commonStep,
+      kind: z.literal("task.update"),
+      input: z
+        .object({
+          ...taskFields,
+          title: taskFields.title.optional(),
+          id: boundId,
+          expected_updated_at: z.string().datetime({ offset: true }),
+          status: z.enum(["backlog", "month", "week", "today", "doing", "completed"]).optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      ...commonStep,
+      kind: z.literal("memory.put"),
+      input: memoryInput.options[2].omit({ action: true }),
+    })
+    .strict(),
+  z
+    .object({
+      ...commonStep,
+      kind: z.literal("memory.confirm"),
+      input: z
+        .object({
+          key: z.enum([
+            "reminder_default_time",
+            "default_project_id",
+            "default_document_id",
+            "preferred_doc_format",
+          ]),
+          expected_version: version,
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      ...commonStep,
+      kind: z.literal("document.register"),
+      input: documentsInput.options[2].omit({ action: true }),
+    })
+    .strict(),
+  z
+    .object({
+      ...commonStep,
+      kind: z.literal("focus.transition"),
+      input: z.discriminatedUnion("action", [
+        z.object({ action: z.literal("start"), task_id: boundId }).strict(),
+        ...(["pause", "resume", "cancel"] as const).map((action) =>
+          z.object({ action: z.literal(action), session_id: boundId }).strict(),
+        ),
+        z
+          .object({ action: z.literal("finish"), session_id: boundId, complete: z.boolean() })
+          .strict(),
+      ]),
+    })
+    .strict(),
+]);
+const workflowPlan = z
+  .array(workflowStep)
+  .min(1)
+  .max(12)
+  .superRefine((steps, ctx) => {
+    const seen = new Set<string>();
+    for (const step of steps) {
+      if (
+        seen.has(step.id) ||
+        new Set(step.depends_on).size !== step.depends_on.length ||
+        step.depends_on.some((id) => !seen.has(id))
+      )
+        ctx.addIssue({ code: "custom", message: "invalid_dependency" });
+      for (const [key, value] of Object.entries(step.input))
+        if (value && typeof value === "object" && "step" in value && key !== "value") {
+          if (!step.depends_on.includes(String(value.step)))
+            ctx.addIssue({ code: "custom", message: "invalid_binding" });
+        }
+      seen.add(step.id);
+    }
+  });
+export const workflowInput = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("prepare"), steps: workflowPlan }).strict(),
+  z
+    .object({ action: z.literal("list"), limit: z.number().int().min(1).max(100).optional() })
+    .strict(),
+  ...(["get", "run", "resume", "cancel"] as const).map((action) =>
+    z.object({ action: z.literal(action), id: z.uuid() }).strict(),
+  ),
+  z
+    .object({
+      action: z.literal("confirm"),
+      id: z.uuid(),
+      approval_id: z.uuid(),
+      expected_plan_hash: z.string().regex(/^[a-f0-9]{64}$/),
+      confirm: z.literal(true),
+    })
+    .strict(),
+]);
+export type WorkflowInput = z.infer<typeof workflowInput>;
+export type WorkflowKind = z.infer<typeof workflowStep>["kind"];
 export const v2Envelope = z.discriminatedUnion("operation", [
+  z.object({ operation: z.literal("workflow"), input: workflowInput }).strict(),
   z.object({ operation: z.literal("memory"), input: memoryInput }).strict(),
   z.object({ operation: z.literal("documents"), input: documentsInput }).strict(),
   z.object({ operation: z.literal("focus"), input: focusInput }).strict(),

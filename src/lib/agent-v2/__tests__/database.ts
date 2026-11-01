@@ -2,7 +2,13 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 export const uid = "00000000-0000-4000-8000-000000000001";
 export const other = "00000000-0000-4000-8000-000000000002";
-export async function createV2Database(migrations = ["0006_agent_v2_focus.sql"]) {
+export async function createV2Database(
+  migrations = [
+    "0006_agent_v2_focus.sql",
+    "0007_agent_v2_memory_documents.sql",
+    "0008_agent_v2_workflows.sql",
+  ],
+) {
   const db = new PGlite();
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
   await db.exec(read("../../control/__tests__/schema-fixture.sql"));

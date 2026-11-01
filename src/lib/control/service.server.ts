@@ -18,6 +18,7 @@ const envelope = z
   })
   .strict();
 const errorCodes = [
+  "source_approval_required",
   "invalid_recurrence",
   "invalid_completion",
   "skill_name_exists",
@@ -156,6 +157,43 @@ export async function handleControl(request: Request): Promise<Response> {
       .maybeSingle();
     if (messageError || !message || Date.parse(message.created_at) < Date.now() - 1800000)
       throw new Error("inbound_context_required");
+    if (
+      ["development_request", "upload", "export", "learning"].includes(action) ||
+      (action === "learning_manage" && input.operation === "generate_plan")
+    ) {
+      await rpc(db, "agent_v2_control_guard", {
+        p_uid: uid,
+        p_chat: chat,
+        p_message: identity.message,
+      });
+    }
+    if (action === "confirm_v2") {
+      const id = z.object({ approval_id: z.uuid() }).strict().parse(input).approval_id;
+      if (message.text !== "confirm v2 " + id) throw new Error("invalid_confirmation");
+      const requestKey = "tg:" + chat + ":" + identity.message + ":v2:confirm";
+      const result = await rpc<{ id: string }>(db, "agent_v2_confirm_telegram", {
+        p_uid: uid,
+        p_key: requestKey,
+        p_approval: id,
+        p_chat: chat,
+        p_message: identity.message,
+      });
+      const { runWorkflow } = await import("@/lib/agent-v2/runner.server");
+      return agentJson(
+        await runWorkflow(
+          db,
+          {
+            uid,
+            source: "telegram",
+            requestKey,
+            text: message.text,
+            chatRef: chat,
+            messageRef: identity.message,
+          },
+          result.id,
+        ),
+      );
+    }
     if (action === "v2") {
       const { dispatchV2 } = await import("@/lib/agent-v2/service.server");
       const { v2Envelope, V2Error } = await import("@/lib/agent-v2/contracts");
@@ -474,7 +512,10 @@ export async function handleControl(request: Request): Promise<Response> {
     return agentJson(
       {
         error: known ?? "request_rejected",
-        status: "No success is claimed; re-read the record before retrying a rejected operation.",
+        status:
+          known === "source_approval_required"
+            ? "Use Career OS as the signed-in owner for this action, or prepare a supported V2 workflow and confirm its exact preview."
+            : "No success is claimed; re-read the record before retrying a rejected operation.",
       },
       known ? 409 : 422,
     );

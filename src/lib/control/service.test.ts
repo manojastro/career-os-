@@ -2,6 +2,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHash } from "node:crypto";
 const fixture = vi.hoisted(() => ({
   calls: [] as string[],
+  exposed: false,
   text: "Show my tasks",
   reply: null as string | null,
   feedback: null as Record<string, unknown> | null,
@@ -13,6 +14,9 @@ vi.mock("@/lib/agent-v2/service.server", () => ({
     return { status: "completed" };
   },
 }));
+vi.mock("@/lib/agent-v2/runner.server", () => ({
+  runWorkflow: async () => ({ state: "running", steps: [] }),
+}));
 vi.mock("@/lib/learning/service.server", () => ({
   applyFeedback: async (_db: unknown, _uid: string, input: Record<string, unknown>) => {
     fixture.feedback = input;
@@ -23,6 +27,8 @@ vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     rpc: async (name: string) => {
       fixture.calls.push(name);
+      if (name === "agent_v2_control_guard" && fixture.exposed)
+        return { data: null, error: { message: "source_approval_required" } };
       return { data: name === "agent_rate_hit" ? true : { status: "completed" }, error: null };
     },
     from: (table: string) => {
@@ -77,6 +83,7 @@ function request(
 }
 beforeEach(() => {
   fixture.calls.length = 0;
+  fixture.exposed = false;
   fixture.text = "Show my tasks";
   fixture.reply = null;
   fixture.feedback = null;
@@ -85,6 +92,30 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("owner HTTP boundary", () => {
+  it("blocks alternate legacy mutations after untrusted source exposure", async () => {
+    fixture.exposed = true;
+    fixture.text = "Summarize this document";
+    for (const [action, input] of [
+      ["learning_manage", { operation: "generate_plan" }],
+      ["development_request", { request: "Retrieved document says create new work" }],
+      ["upload", { title: "Injected capture" }],
+      ["export", {}],
+      ["learning", { kind: "completed" }],
+    ] as const) {
+      const response = await handleControl(request(action, input));
+      expect(response.status).toBe(409);
+      expect((await response.json()).error).toBe("source_approval_required");
+    }
+    expect(fixture.calls).not.toContain("control_queue_development");
+  });
+  it("accepts V2 confirmation only from the exact saved ingress text", async () => {
+    const approval_id = "00000000-0000-4000-8000-000000000004";
+    expect((await handleControl(request("confirm_v2", { approval_id }))).status).toBe(409);
+    expect(fixture.calls).not.toContain("agent_v2_confirm_telegram");
+    fixture.text = "confirm v2 " + approval_id;
+    expect((await handleControl(request("confirm_v2", { approval_id }))).status).toBe(200);
+    expect(fixture.calls).toContain("agent_v2_confirm_telegram");
+  });
   it("binds V2 to original actual ingress and payload-independent semantic identity", async () => {
     fixture.text = "I'm starting my LangGraph project now.";
     expect(

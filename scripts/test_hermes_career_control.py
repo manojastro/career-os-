@@ -51,6 +51,15 @@ class BoundaryTests(unittest.TestCase):
    self.assertIsNone(plugin.guard(tool_name="career_query"))
    with patch.object(plugin,"request",return_value={"status":"ready"}):plugin.ingress(event=self.event())
    self.assertIn("Attachment",json.loads(plugin.handler("upload",{"path":"C:/private/.env","title":"Bad"}))["error"])
+ def test_v2_confirmation_is_exact_raw_ingress_only(self):
+  token="00000000-0000-4000-8000-000000000001"
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req:
+   for n,text in enumerate([" confirm v2 "+token,"CONFIRM v2 "+token,"confirm v2 "+token+"\n"]):
+    plugin.ingress(event=self.event(text=text,message=str(100+n)))
+    self.assertEqual(req.call_args.args[1],"begin")
+   event=self.event(text="summarize",message="104");event.text="confirm v2 "+token;plugin.ingress(event=event);self.assertEqual(req.call_args.args[1],"begin")
+   plugin.ingress(event=self.event(text="confirm v2 "+token,message="105"));self.assertEqual(req.call_args.args[1],"confirm_v2")
+   self.assertEqual(req.call_args.args[2],{"approval_id":token})
  def test_no_redirect_or_unsafe_origin(self):
   with self.assertRaises(ValueError):plugin.NoRedirect().redirect_request(None,None,302,None,None,"https://evil.test")
   with patch.dict(os.environ,{"CAREER_OS_BASE_URL":"http://evil.test"}):
@@ -65,8 +74,8 @@ class BoundaryTests(unittest.TestCase):
  def test_agent_has_strict_discriminated_schema_and_uses_existing_transport(self):
   self.assertIn("agent",plugin.ACTIONS)
   schema=plugin.SCHEMAS["agent"]
-  self.assertEqual(len(schema["oneOf"]),4)
-  self.assertEqual({v["properties"]["operation"]["const"] for v in schema["oneOf"]},{"focus","instruction","memory","documents"})
+  self.assertEqual(len(schema["oneOf"]),5)
+  self.assertEqual({v["properties"]["operation"]["const"] for v in schema["oneOf"]},{"focus","instruction","memory","documents","workflow"})
   for variant in schema["oneOf"]:self.assertFalse(variant["additionalProperties"])
   with patch.object(plugin,"request",return_value={"status":"ready"}) as req,self.context():
    plugin.ingress(event=self.event())
