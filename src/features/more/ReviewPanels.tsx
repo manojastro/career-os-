@@ -26,7 +26,7 @@ export function WeeklyReviewPanel() {
   const milestones = data.activity_log.filter(
     (item) => item.entity_type === "milestones" && item.occurred_at >= since,
   );
-  const nextMonday = new Date(`${mondayOf()}T12:00:00`);
+  const nextMonday = new Date(`${mondayOf(new Date(), timezone)}T12:00:00`);
   nextMonday.setDate(nextMonday.getDate() + 7);
   const nextDay = localDay(nextMonday);
 

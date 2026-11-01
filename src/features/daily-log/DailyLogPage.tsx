@@ -1,22 +1,65 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Empty, PageHeading, Section, minutesLabel } from "@/components/ui";
-import { localDay, standaloneLearningSessions } from "@/lib/domain/insights";
+import { dailyFocusBreakdown } from "@/lib/domain/insights";
 import { useStore } from "@/lib/store";
 import { DailyLogLearning } from "@/features/learning-manager/LearningManager";
 
+type FocusItem = ReturnType<typeof dailyFocusBreakdown>["learning"][number];
+const focusList = (items: FocusItem[], empty: string, withType = false) =>
+  items.length
+    ? items
+        .map(
+          (item) =>
+            `${item.title}${withType && item.type ? ` (${item.type})` : ""} · ${minutesLabel(item.minutes)}`,
+        )
+        .join(", ")
+    : empty;
+
 export function DailyLogPage() {
-  const { data, add, update, day: localDay } = useStore();
+  const { data, add, update, day: localDay, timezone, user } = useStore();
   const [date, setDate] = useState(localDay());
   const [draft, setDraft] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  // Unsaved notes survive date changes, navigation and reloads in this tab, like note drafts.
+  const draftKey = `career-os-journal-draft:${user?.id ?? "demo"}:${date}`;
+  const currentKey = useRef(draftKey);
+  currentKey.current = draftKey;
+  useEffect(() => {
+    try {
+      setDraft(sessionStorage.getItem(draftKey));
+    } catch {
+      setDraft(null);
+    }
+  }, [draftKey]);
   const log = data.daily_logs.find((item) => item.log_date === date);
   const journal = draft ?? log?.journal ?? "";
+  const dirty = draft !== null && draft !== (log?.journal ?? "");
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const edit = (value: string) => {
+    setDraft(value);
+    try {
+      sessionStorage.setItem(draftKey, value);
+    } catch {
+      setMessage("Draft recovery is unavailable in this tab. Save before leaving.");
+    }
+  };
+  const forget = (key: string) => {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      /* Storage is optional; the saved journal is the record. */
+    }
+    if (currentKey.current === key) setDraft(null);
+  };
   const tasks = data.tasks.filter(
     (task) => task.completed_at && localDay(new Date(task.completed_at)) === date,
   );
-  const sessions = data.focus_sessions.filter(
-    (session) => localDay(new Date(session.started_at)) === date,
-  );
+  const focus = dailyFocusBreakdown(data, date, timezone);
   const practice = data.interview_practice.filter(
     (item) => localDay(new Date(item.practiced_at)) === date,
   );
@@ -26,27 +69,15 @@ export function DailyLogPage() {
   const activity = data.activity_log
     .filter((item) => localDay(new Date(item.occurred_at)) === date)
     .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
-  const learned = sessions.filter(
-    (session) => data.tasks.find((task) => task.id === session.task_id)?.type === "Learn",
-  );
-  const legacyLearning = standaloneLearningSessions(data).filter(
-    (session) => localDay(new Date(session.occurred_at)) === date,
-  );
-  const focusedTotal =
-    sessions.reduce((sum, session) => sum + session.duration_minutes, 0) +
-    legacyLearning.reduce((sum, session) => sum + (session.minutes || 0), 0);
-  const built = sessions.filter(
-    (session) => data.tasks.find((task) => task.id === session.task_id)?.type === "Build",
-  );
-
   const save = async () => {
+    const key = draftKey;
     try {
       if (log) await update("daily_logs", log.id, { journal });
       else await add("daily_logs", { log_date: date, journal });
       setMessage("Journal saved.");
-      setDraft(null);
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Could not save journal.");
+      forget(key);
+    } catch {
+      setMessage("Could not save the journal. Your notes are still here; try again.");
     }
   };
 
@@ -64,7 +95,6 @@ export function DailyLogPage() {
           value={date}
           onChange={(event) => {
             setDate(event.target.value);
-            setDraft(null);
             setMessage("");
           }}
         />
@@ -76,7 +106,7 @@ export function DailyLogPage() {
         </div>
         <div className="summary-item">
           <span>Focused work</span>
-          <strong>{minutesLabel(focusedTotal)}</strong>
+          <strong>{minutesLabel(focus.total)}</strong>
         </div>
         <div className="summary-item">
           <span>Questions practiced</span>
@@ -94,33 +124,21 @@ export function DailyLogPage() {
               <div>
                 <strong className="small">Learning</strong>
                 <div className="small muted">
-                  {learned.length || legacyLearning.length
-                    ? [
-                        ...learned.map(
-                          (session) =>
-                            `${data.tasks.find((task) => task.id === session.task_id)?.title ?? "Learning"} · ${minutesLabel(session.duration_minutes)}`,
-                        ),
-                        ...legacyLearning.map(
-                          (session) =>
-                            `${session.learned || "Learning session"} · ${minutesLabel(session.minutes)}`,
-                        ),
-                      ].join(", ")
-                    : "No learning session yet."}
+                  {focusList(focus.learning, "No learning session yet.")}
                 </div>
               </div>
               <div>
                 <strong className="small">Building</strong>
                 <div className="small muted">
-                  {built.length
-                    ? built
-                        .map(
-                          (session) =>
-                            `${data.tasks.find((task) => task.id === session.task_id)?.title ?? "Project"} · ${minutesLabel(session.duration_minutes)}`,
-                        )
-                        .join(", ")
-                    : "No build session yet."}
+                  {focusList(focus.building, "No build session yet.")}
                 </div>
               </div>
+              {focus.other.length > 0 && (
+                <div>
+                  <strong className="small">Other focused work</strong>
+                  <div className="small muted">{focusList(focus.other, "", true)}</div>
+                </div>
+              )}
               <div>
                 <strong className="small">Completed tasks</strong>
                 <div className="small muted">
@@ -147,15 +165,28 @@ export function DailyLogPage() {
                 style={{ minHeight: 150 }}
                 placeholder="What did you learn? What needs attention tomorrow?"
                 value={journal}
-                onChange={(event) => setDraft(event.target.value)}
+                onChange={(event) => edit(event.target.value)}
               />
               <div className="row-between" style={{ marginTop: 12 }}>
                 <span className="small muted" role="status">
-                  {message}
+                  {message ||
+                    (dirty ? "Unsaved notes are kept in this tab until you save or discard." : "")}
                 </span>
-                <Button variant="primary" onClick={() => void save()}>
-                  Save journal
-                </Button>
+                <div className="row" style={{ gap: 8 }}>
+                  {dirty && (
+                    <Button
+                      onClick={() => {
+                        forget(draftKey);
+                        setMessage("");
+                      }}
+                    >
+                      Discard changes
+                    </Button>
+                  )}
+                  <Button variant="primary" onClick={() => void save()}>
+                    Save journal
+                  </Button>
+                </div>
               </div>
             </div>
           </Section>
@@ -169,6 +200,7 @@ export function DailyLogPage() {
                     <span className="semibold">{item.summary}</span>
                     <div className="micro muted">
                       {new Date(item.occurred_at).toLocaleTimeString([], {
+                        timeZone: timezone,
                         hour: "numeric",
                         minute: "2-digit",
                       })}

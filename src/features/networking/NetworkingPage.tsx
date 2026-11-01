@@ -10,7 +10,6 @@ import {
   Section,
   dateLabel,
 } from "@/components/ui";
-import { localDay } from "@/lib/domain/insights";
 import { Contact, NetworkInteraction } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
 
@@ -36,7 +35,7 @@ const kinds: NetworkInteraction["kind"][] = [
 ];
 
 export function NetworkingPage() {
-  const { data, add, update } = useStore();
+  const { data, add, update, day: localDay } = useStore();
   const safeUpdate: typeof update = (...args) =>
     update(...args).catch((cause) =>
       setError(cause instanceof Error ? cause.message : "Could not save this change."),

@@ -16,7 +16,6 @@ import {
   projectProgress,
   todayTasks,
   weeklyTime,
-  localDay,
 } from "@/lib/domain/insights";
 import { APPLICATION_STAGES } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
@@ -25,13 +24,13 @@ import { TaskRow } from "@/features/tasks/TaskRow";
 import { TodayLearningCard } from "@/features/learning-manager/LearningManager";
 
 export function DashboardPage({ openCapture }: { openCapture: () => void }) {
-  const { data, timezone } = useStore();
+  const { data, timezone, day } = useStore();
   const { start } = useFocus();
-  const today = todayTasks(data).slice(0, 5);
+  const today = todayTasks(data, day()).slice(0, 5);
   const week = weeklyTime(data, new Date(), timezone);
-  const overdue = overdueTasks(data);
+  const overdue = overdueTasks(data, day());
   const followups = data.contacts.filter(
-    (contact) => contact.next_followup && contact.next_followup <= localDay(),
+    (contact) => contact.next_followup && contact.next_followup <= day(),
   );
   const activeGoals = data.goals.filter((goal) => goal.status === "active");
   const totalProgress = activeGoals.length
@@ -45,6 +44,7 @@ export function DashboardPage({ openCapture }: { openCapture: () => void }) {
   );
   const stages = APPLICATION_STAGES;
   const displayDate = new Date().toLocaleDateString(undefined, {
+    timeZone: timezone,
     weekday: "long",
     day: "numeric",
     month: "long",

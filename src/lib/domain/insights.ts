@@ -1,4 +1,4 @@
-import { AppData, EntityName, Skill } from "./types";
+import { AppData, EntityName, Skill, Task } from "./types";
 
 const day = (value: string | null | undefined) => value?.slice(0, 10) ?? "";
 const instantDay = (value: string | null | undefined, zone?: string) =>
@@ -163,6 +163,35 @@ export function standaloneLearningSessions(data: AppData) {
   return (data.learning_sessions ?? []).filter(
     (session) => !session.deleted_at && !session.focus_session_id,
   );
+}
+
+type FocusItem = { id: string; title: string; type: Task["type"] | null; minutes: number };
+/** Owner-day focus ledger grouped so the groups always add up to the day's total. */
+export function dailyFocusBreakdown(data: AppData, date: string, timeZone?: string) {
+  const learning: FocusItem[] = [];
+  const building: FocusItem[] = [];
+  const other: FocusItem[] = [];
+  for (const session of data.focus_sessions) {
+    if (instantDay(session.started_at, timeZone) !== date) continue;
+    const task = data.tasks.find((item) => item.id === session.task_id);
+    const item = {
+      id: session.id,
+      title: task?.title ?? "Focus session",
+      type: task?.type ?? null,
+      minutes: session.duration_minutes,
+    };
+    (task?.type === "Learn" ? learning : task?.type === "Build" ? building : other).push(item);
+  }
+  for (const session of standaloneLearningSessions(data))
+    if (instantDay(session.occurred_at, timeZone) === date)
+      learning.push({
+        id: session.id,
+        title: session.learned || "Learning session",
+        type: "Learn",
+        minutes: session.minutes || 0,
+      });
+  const total = [...learning, ...building, ...other].reduce((sum, item) => sum + item.minutes, 0);
+  return { learning, building, other, total };
 }
 
 export function todayTasks(data: AppData, date = localDay()) {

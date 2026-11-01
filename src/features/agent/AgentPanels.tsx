@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Section, Button, Field, PageHeading, Empty } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { useFocus } from "@/features/focus/FocusProvider";
@@ -18,6 +18,7 @@ import {
   useRows,
   type Row,
 } from "./agentData";
+import { usageLabel, usageSummary, workerActivity } from "./activity";
 
 const noop = () => {};
 
@@ -1789,25 +1790,53 @@ function ActivityInner() {
     () => Array.from(new Set([...WORKFLOWS, ...runs.rows.map((r) => r["workflow"])])),
     [runs.rows],
   );
+  const activity = workerActivity(runs.rows, cmds.rows);
+  const lastSeen = activity.last
+    ? `last worker activity ${ist(activity.last)}`
+    : "no worker activity recorded yet";
   const runNow = async (wf: string) => {
     setMsg("");
     try {
       await queueCommand("run_now", wf);
-      setMsg(`Queued ${wf.replaceAll("_", " ")}. The worker claims it on its next poll.`);
+      setMsg(
+        `Queued ${wf.replaceAll("_", " ")}. It runs only when the worker next polls (${lastSeen}).`,
+      );
       cmds.reload();
-    } catch (x) {
-      setMsg((x as Error).message);
+    } catch {
+      setMsg("Could not queue this run. Try again.");
     }
   };
-  const usage = runs.rows.reduce(
-    (acc, r) => {
-      const u = r["usage"] ?? {};
-      acc.tokens += Number(u["input_tokens"] ?? 0) + Number(u["output_tokens"] ?? 0);
-      acc.cost += Number(u["cost_usd"] ?? 0);
-      return acc;
-    },
-    { tokens: 0, cost: 0 },
-  );
+  const cancel = async (id: string) => {
+    setMsg("");
+    try {
+      await updateRow("agent_commands", id, { status: "cancelled" });
+    } catch {
+      setMsg("Could not cancel: the worker may already have claimed this command.");
+    }
+    cmds.reload();
+  };
+  const markRead = async (id: string) => {
+    try {
+      await updateRow("agent_notifications", id, { read_at: new Date().toISOString() });
+      notes.reload();
+    } catch {
+      setMsg("Could not mark this notification as read. Try again.");
+    }
+  };
+  const pending =
+    cmds.rows.some((c) => c["status"] === "queued" || c["status"] === "claimed") ||
+    runs.rows.some((r) => r["status"] === "running");
+  const { reload: reloadRuns } = runs;
+  const { reload: reloadCmds } = cmds;
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      void reloadRuns();
+      void reloadCmds();
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [pending, reloadRuns, reloadCmds]);
   const failures = runs.rows.filter((r) => r["status"] === "failed");
   const owner = useRows("agent_owner", { order: "bound_at", limit: 1 });
   const prefs = useRows("career_preferences", { order: "created_at", limit: 1 });
@@ -1821,11 +1850,21 @@ function ActivityInner() {
           gets delivered. Link it in Settings.
         </div>
       )}
+      {linked && !runs.loading && !cmds.loading && (
+        <div className={activity.waiting ? "alert" : "small muted"} role="status">
+          {activity.waiting ? (
+            <>
+              <strong>Worker may be offline.</strong> {activity.waiting} command
+              {activity.waiting === 1 ? " has" : "s have"} waited over 10 minutes without being
+              claimed; nothing runs until the worker polls again ({lastSeen}).
+            </>
+          ) : (
+            `The worker sends no heartbeat; ${lastSeen}.`
+          )}
+        </div>
+      )}
       {msg && <div className="alert">{msg}</div>}
-      <Section
-        title="Workflows"
-        meta={`${runs.rows.length} runs · ${usage.tokens.toLocaleString("en-IN")} tokens · $${usage.cost.toFixed(2)}`}
-      >
+      <Section title="Workflows" meta={usageLabel(usageSummary(runs.rows))}>
         <ErrorLine error={runs.error} />
         <div style={{ overflowX: "auto" }}>
           <table className="data-table">
@@ -1910,7 +1949,7 @@ function ActivityInner() {
             ))
           )}
         </Section>
-        <Section title="Command queue">
+        <Section title="Command queue" meta={pending ? "Refreshing every 15 s" : undefined}>
           <ErrorLine error={cmds.error} />
           {cmds.rows.length === 0 ? (
             <Empty
@@ -1932,14 +1971,7 @@ function ActivityInner() {
                   {c["completed_at"] ? ` · finished ${ist(c["completed_at"])}` : ""}
                 </div>
                 {c["status"] === "queued" && (
-                  <Button
-                    style={{ marginTop: 6 }}
-                    onClick={() =>
-                      void updateRow("agent_commands", c.id, { status: "cancelled" }).then(
-                        cmds.reload,
-                      )
-                    }
-                  >
+                  <Button style={{ marginTop: 6 }} onClick={() => void cancel(c.id)}>
                     Cancel
                   </Button>
                 )}
@@ -1969,11 +2001,7 @@ function ActivityInner() {
                   <button
                     className="link"
                     style={{ border: 0, background: "none", padding: 0 }}
-                    onClick={() =>
-                      void updateRow("agent_notifications", n.id, {
-                        read_at: new Date().toISOString(),
-                      }).then(notes.reload)
-                    }
+                    onClick={() => void markRead(n.id)}
                   >
                     Mark read
                   </button>
