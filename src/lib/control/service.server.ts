@@ -5,6 +5,7 @@ import { readJsonLimited } from "@/lib/learning/http";
 import { registry, validateOperations, verifyTelegramIdentity } from "./protocol";
 import { csvCell } from "./csv";
 import { verifyFeedbackIntent } from "./learning-feedback";
+import { DEFAULT_TZ, isValidTimeZone, zonedParts } from "@/lib/learning/engine";
 import { allRows, query, resolve, search, report, rpc, type Db } from "./queries.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database";
@@ -271,7 +272,29 @@ export async function handleControl(request: Request): Promise<Response> {
         .eq("chat_ref", chat)
         .maybeSingle();
       if (error) throw new Error("context_unavailable");
+      const { data: prefs, error: prefsError } = await db
+        .from("learning_preferences")
+        .select("timezone")
+        .eq("user_id", uid)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (prefsError) throw new Error("context_unavailable");
+      // The SDK prompt only carries the conversation's start date; give the owner's actual clock.
+      const saved = isValidTimeZone(prefs?.timezone);
+      const timezone = saved ? String(prefs?.timezone) : DEFAULT_TZ;
+      const now = zonedParts(new Date(), timezone);
+      const pad = (n: number) => String(n).padStart(2, "0");
       return agentJson({
+        owner_clock: {
+          timezone,
+          timezone_source: saved ? "saved" : "default",
+          date: now.date,
+          time: pad(Math.floor(now.minutes / 60)) + ":" + pad(now.minutes % 60),
+          weekday: new Date(now.date + "T12:00:00Z").toLocaleDateString("en-US", {
+            weekday: "long",
+            timeZone: "UTC",
+          }),
+        },
         context: data,
         owner_binding: "verified",
         conversation: "authorized private Telegram",

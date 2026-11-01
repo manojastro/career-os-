@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 const fixture = vi.hoisted(() => ({
   calls: [] as string[],
   exposed: false,
+  timezone: "Asia/Kolkata" as string,
   text: "Show my tasks",
   reply: null as string | null,
   feedback: null as Record<string, unknown> | null,
@@ -50,11 +51,13 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           data:
             table === "agent_owner"
               ? { user_id: "00000000-0000-4000-8000-000000000001" }
-              : {
-                  text: fixture.text,
-                  reply_to_message_ref: fixture.reply,
-                  created_at: new Date().toISOString(),
-                },
+              : table === "learning_preferences"
+                ? { timezone: fixture.timezone }
+                : {
+                    text: fixture.text,
+                    reply_to_message_ref: fixture.reply,
+                    created_at: new Date().toISOString(),
+                  },
           error: null,
         }),
         insert: async () => ({ error: null }),
@@ -84,6 +87,7 @@ function request(
 beforeEach(() => {
   fixture.calls.length = 0;
   fixture.exposed = false;
+  fixture.timezone = "Asia/Kolkata";
   fixture.text = "Show my tasks";
   fixture.reply = null;
   fixture.feedback = null;
@@ -92,6 +96,28 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("owner HTTP boundary", () => {
+  it("gives Hermes the owner's clock from the saved timezone, not the host clock", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T19:00:00Z"));
+    try {
+      const context = async () =>
+        (await (await handleControl(request("context", {}))).json()).owner_clock;
+      expect(await context()).toEqual({
+        timezone: "Asia/Kolkata",
+        timezone_source: "saved",
+        date: "2026-11-02",
+        time: "00:30",
+        weekday: "Monday",
+      });
+      fixture.timezone = "Mars/Olympus";
+      expect(await context()).toMatchObject({
+        timezone: "Asia/Kolkata",
+        timezone_source: "default",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("blocks alternate legacy mutations after untrusted source exposure", async () => {
     fixture.exposed = true;
     fixture.text = "Summarize this document";

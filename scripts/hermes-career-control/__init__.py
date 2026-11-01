@@ -26,6 +26,7 @@ Project progress comes from linked tasks. Interactions update contact history; i
 career_upload accepts only trusted incoming attachment_index, never filesystem paths. Upload is not document processing. Download/export links expire in 300 seconds. External email/LinkedIn/application submission is unconfigured: save drafts or owner-reported manual actions; never claim sent.
 UI/code changes use career_development_request and remain pending, not deployed. No shell, raw SQL, filesystem, provider/credential changes or deployment through Telegram. Preserve OpenRouter Muse Contributor and disabled learning job 46a628bb9ae9.
 Report actual API completed/awaiting_confirmation/pending/failure. On timeout retry identical request, never compensate by creating another. Undo uses saved request_key, exact confirmation and rejects intervening changes.
+Current date/time: call career_context and use owner_clock (owner timezone), never the host clock, terminal or 'Conversation started'.
 """
 def home():
     return Path(os.environ.get("HERMES_HOME", Path.home() / "AppData/Local/hermes"))
@@ -177,13 +178,10 @@ FOCUS_VARIANTS.append(obj({"action":{"const":"finish"},"session_id":UUID,"comple
 SCHEMAS["agent"]={"oneOf":[obj({"operation":{"const":"focus"},"input":{"oneOf":FOCUS_VARIANTS}},["operation","input"]),obj({"operation":{"const":"instruction"},"input":obj({})},["operation","input"])]}
 DESCRIPTIONS["agent"]="Shared server Focus or bounded original-owner instruction. No transport identity or invented time."
 
-# Memory values alone accept bounded JSON data. Operational inputs are finite variants.
-def bounded_json_schema(depth=0):
-    scalar=[{"type":"null"},{"type":"boolean"},{"type":"number"},{"type":"string","maxLength":8000}]
-    if depth<6:
-        child=bounded_json_schema(depth+1)
-        scalar += [{"type":"array","maxItems":1000,"items":child},{"type":"object","maxProperties":1000,"additionalProperties":child}]
-    return {"anyOf":scalar}
+# Memory values alone accept JSON data. Operational inputs are finite variants. The server
+# enforces depth<=6, 8 KB and secret checks; a recursive copy here cost ~19 KB on every model call.
+def bounded_json_schema():
+    return {"anyOf":[{"type":"null"},{"type":"boolean"},{"type":"number"},{"type":"string","maxLength":8000},{"type":"array","maxItems":1000,"items":{}},{"type":"object","maxProperties":1000,"additionalProperties":True}]}
 KEY={"type":"string","minLength":1,"maxLength":100}
 VERSION={"type":"integer","minimum":1,"maximum":999999999}
 PAGE={"type":"integer","minimum":1,"maximum":100}

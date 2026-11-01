@@ -82,6 +82,12 @@ class BoundaryTests(unittest.TestCase):
    plugin.handler("agent",{"operation":"instruction","input":{}})
    self.assertEqual(req.call_args.args[1],"v2")
    self.assertEqual(req.call_args.args[0]["message"],"42")
+ def test_tool_definitions_stay_compact_and_clock_comes_from_career_os(self):
+  sizes={a:len(json.dumps({"name":"career_"+a,"description":plugin.DESCRIPTIONS[a],"parameters":plugin.SCHEMAS[a]},separators=(",",":"))) for a in plugin.ACTIONS}
+  self.assertLess(sizes["agent"],16000);self.assertLess(sum(sizes.values()),23000)
+  bounds={v["type"]:v for v in plugin.MEMORY_VARIANTS[2]["properties"]["value"]["anyOf"]}
+  self.assertEqual((bounds["string"]["maxLength"],bounds["array"]["maxItems"],bounds["object"]["maxProperties"]),(8000,1000,1000))
+  self.assertIn("owner_clock",plugin.PROMPT);self.assertLessEqual(len(plugin.PROMPT),4000)
  def test_api_failure_does_not_fabricate_completion(self):
   with patch.object(plugin,"request",return_value={"error":"not_deployed","http_status":404}):
    self.assertIn("no changes were made",plugin.ingress(event=self.event())["text"])
