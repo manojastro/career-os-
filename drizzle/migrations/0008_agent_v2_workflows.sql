@@ -141,6 +141,9 @@ BEGIN
    fact:=NULL;
    IF s->>'kind'='memory.confirm' THEN
     SELECT jsonb_build_object('key',m.key,'value',m.value,'version',m.version,'category',m.category) INTO fact FROM agent_v2_memories m WHERE m.user_id=p_uid AND m.key=agent_v2_normalize(s->'input'->>'key') AND m.version=(s->'input'->>'expected_version')::integer AND m.deleted_at IS NULL AND (m.expires_at IS NULL OR m.expires_at>clock_timestamp());
+    -- The owner must see the value being promoted: either it already exists at that version, or
+    -- a prior step this one depends on puts the same key in this very plan (visible in the preview).
+    IF fact IS NULL AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p_input->'steps') e WHERE e->>'kind'='memory.put' AND (s->'depends_on') ? (e->>'id') AND agent_v2_normalize(e->'input'->>'key')=agent_v2_normalize(s->'input'->>'key')) THEN RAISE EXCEPTION 'invalid_plan'; END IF;
    END IF;
    preview:=preview||jsonb_build_array(s||CASE WHEN fact IS NOT NULL THEN jsonb_build_object('preference',fact) ELSE '{}'::jsonb END);
    seen:=array_append(seen,s->>'id'); needs:=needs OR pol.approval OR pol.effect='external_write';
@@ -166,7 +169,8 @@ BEGIN
    UPDATE agent_v2_workflow_steps SET permission_decision='approved_plan' WHERE workflow_id=w.id;
   ELSIF a='cancel' THEN
    IF p_input-'action'-'id'<>'{}' THEN RAISE EXCEPTION 'invalid_request'; END IF;
-   UPDATE agent_v2_workflows SET state='cancelled',version=version+1 WHERE id=w.id AND state<>'completed';
+   -- Cancellation stops unclaimed work but never hides an unknown external outcome or dead letter.
+   UPDATE agent_v2_workflows SET state='cancelled',version=version+1 WHERE id=w.id AND state NOT IN ('completed','uncertain','dead_letter');
    UPDATE agent_v2_workflow_steps SET status='cancelled' WHERE workflow_id=w.id AND status IN ('pending','failed','blocked');
   ELSIF a NOT IN ('get','run','resume') OR p_input-'action'-'id'<>'{}' THEN RAISE EXCEPTION 'invalid_request';
   END IF;
