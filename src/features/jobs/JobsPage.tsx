@@ -12,6 +12,9 @@ import {
   dateLabel,
 } from "@/components/ui";
 import { analyzeJobDescription, assessRequirements } from "@/lib/domain/jobGap";
+import { jobSearchStats } from "@/lib/domain/jobStats";
+import { SearchHealth } from "./SearchHealth";
+import { InterviewPrepPanel } from "./InterviewPrepPanel";
 import { localDay } from "@/lib/domain/insights";
 import { JobApplication, ApplicationStatus, APPLICATION_STAGES } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
@@ -242,6 +245,9 @@ export function JobsPage() {
           Add application
         </Button>
       </PageHeading>
+      {data.job_applications.length > 0 && (
+        <SearchHealth stats={jobSearchStats(data, localDay())} onSelect={setSelected} />
+      )}
       <div className="row-between" style={{ marginBottom: 15 }}>
         <div className="tabs">
           <button className={view === "List" ? "active" : ""} onClick={() => setView("List")}>
@@ -558,6 +564,7 @@ export function JobsPage() {
                 )}
               </div>
             </Section>
+            <InterviewPrepPanel applicationId={job.id} gap={gap} />
             <Section title="Related contacts">
               <div>
                 {data.contacts

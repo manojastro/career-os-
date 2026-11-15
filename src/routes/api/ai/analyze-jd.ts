@@ -1,20 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Output, streamText } from "ai";
 import { z } from "zod";
-import { AI_MODEL, lovableGateway, reasoningOptions, userClient } from "@/lib/ai-gateway.server";
+import { userClient } from "@/lib/ai-gateway.server";
 import { checkAiQuota } from "@/lib/ai-quota.server";
+import { analyzeJobPosting } from "@/lib/jobs/analyze.server";
 import { readJsonLimited } from "@/lib/learning/http";
 
 const inputSchema = z.object({ description: z.string().trim().min(80).max(20000) });
-
-const outputSchema = z.object({
-  required_skills: z.array(z.string()).max(30),
-  preferred_skills: z.array(z.string()).max(30),
-  tools: z.array(z.string()).max(30),
-  cloud_requirements: z.array(z.string()).max(20),
-  experience_signals: z.array(z.string()).max(20),
-  responsibilities: z.array(z.string()).max(20),
-});
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -46,19 +37,8 @@ export const Route = createFileRoute("/api/ai/analyze-jd")({
         if (quota) return quota;
 
         try {
-          const gateway = lovableGateway(apiKey);
-          const result = streamText({
-            abortSignal: AbortSignal.timeout(30000),
-            maxOutputTokens: 1800,
-            model: gateway.responses(AI_MODEL),
-            system:
-              "Extract only requirements stated in this job description. Return required_skills, preferred_skills, tools, cloud_requirements, experience_signals and responsibilities. Do not infer unstated qualifications. Keep entries concise and deduplicate.",
-            prompt: parsed.data.description,
-            output: Output.object({ schema: outputSchema }),
-            providerOptions: reasoningOptions as never,
-          });
-          return json(await result.output);
-        } catch (cause) {
+          return json(await analyzeJobPosting(apiKey, parsed.data.description));
+        } catch {
           return json({ error: "AI analysis failed or timed out. Try again later." }, 502);
         }
       },
