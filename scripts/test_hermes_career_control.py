@@ -51,6 +51,15 @@ class BoundaryTests(unittest.TestCase):
    self.assertIsNone(plugin.guard(tool_name="career_query"))
    with patch.object(plugin,"request",return_value={"status":"ready"}):plugin.ingress(event=self.event())
    self.assertIn("Attachment",json.loads(plugin.handler("upload",{"path":"C:/private/.env","title":"Bad"}))["error"])
+ def test_v2_confirmation_is_exact_raw_ingress_only(self):
+  token="00000000-0000-4000-8000-000000000001"
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req:
+   for n,text in enumerate([" confirm v2 "+token,"CONFIRM v2 "+token,"confirm v2 "+token+"\n"]):
+    plugin.ingress(event=self.event(text=text,message=str(100+n)))
+    self.assertEqual(req.call_args.args[1],"begin")
+   event=self.event(text="summarize",message="104");event.text="confirm v2 "+token;plugin.ingress(event=event);self.assertEqual(req.call_args.args[1],"begin")
+   plugin.ingress(event=self.event(text="confirm v2 "+token,message="105"));self.assertEqual(req.call_args.args[1],"confirm_v2")
+   self.assertEqual(req.call_args.args[2],{"approval_id":token})
  def test_no_redirect_or_unsafe_origin(self):
   with self.assertRaises(ValueError):plugin.NoRedirect().redirect_request(None,None,302,None,None,"https://evil.test")
   with patch.dict(os.environ,{"CAREER_OS_BASE_URL":"http://evil.test"}):
@@ -61,7 +70,31 @@ class BoundaryTests(unittest.TestCase):
    def register_tool(self,**kw):self.tools.append(kw)
    def register_hook(self,n,fn):self.hooks.append(n)
    def register_system_prompt_section(self,*a,**kw):pass
-  c=Ctx();plugin.register(c);self.assertEqual(len(c.tools),15);self.assertTrue(all(t["toolset"]=="career-os-control" for t in c.tools));self.assertIn("pre_tool_call",c.hooks)
+  c=Ctx();plugin.register(c);self.assertEqual(len(c.tools),17);self.assertTrue(all(t["toolset"]=="career-os-control" for t in c.tools));self.assertIn("pre_tool_call",c.hooks)
+ def test_agent_has_strict_discriminated_schema_and_uses_existing_transport(self):
+  self.assertIn("agent",plugin.ACTIONS)
+  schema=plugin.SCHEMAS["agent"]
+  self.assertEqual(len(schema["oneOf"]),5)
+  self.assertEqual({v["properties"]["operation"]["const"] for v in schema["oneOf"]},{"focus","instruction","memory","documents","workflow"})
+  for variant in schema["oneOf"]:self.assertFalse(variant["additionalProperties"])
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req,self.context():
+   plugin.ingress(event=self.event())
+   plugin.handler("agent",{"operation":"instruction","input":{}})
+   self.assertEqual(req.call_args.args[1],"v2")
+   self.assertEqual(req.call_args.args[0]["message"],"42")
+ def test_job_intake_sends_only_named_fields_and_never_the_post_text(self):
+  schema=plugin.SCHEMAS["job_intake"]
+  self.assertEqual(set(schema["required"]),{"company","role"});self.assertNotIn("job_description",schema["properties"]);self.assertFalse(schema["additionalProperties"])
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req,self.context():
+   plugin.ingress(event=self.event())
+   plugin.handler("job_intake",{"company":"Acme","role":"ML Engineer"})
+   self.assertEqual(req.call_args.args[1:],("job_intake",{"company":"Acme","role":"ML Engineer"}))
+ def test_tool_definitions_stay_compact_and_clock_comes_from_career_os(self):
+  sizes={a:len(json.dumps({"name":"career_"+a,"description":plugin.DESCRIPTIONS[a],"parameters":plugin.SCHEMAS[a]},separators=(",",":"))) for a in plugin.ACTIONS}
+  self.assertLess(sizes["agent"],16000);self.assertLess(sum(sizes.values()),23000)
+  bounds={v["type"]:v for v in plugin.MEMORY_VARIANTS[2]["properties"]["value"]["anyOf"]}
+  self.assertEqual((bounds["string"]["maxLength"],bounds["array"]["maxItems"],bounds["object"]["maxProperties"]),(8000,1000,1000))
+  self.assertIn("owner_clock",plugin.PROMPT);self.assertLessEqual(len(plugin.PROMPT),4000)
  def test_api_failure_does_not_fabricate_completion(self):
   with patch.object(plugin,"request",return_value={"error":"not_deployed","http_status":404}):
    self.assertIn("no changes were made",plugin.ingress(event=self.event())["text"])

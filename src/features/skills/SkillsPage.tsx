@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Badge, Button, Dialog, Empty, Field, PageHeading, Section } from "@/components/ui";
-import { localDay, skillReadiness } from "@/lib/domain/insights";
+import { skillReadiness } from "@/lib/domain/insights";
 import { SkillStatus } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
 import { LearningPathSection } from "@/features/learning-manager/LearningManager";
@@ -17,7 +17,7 @@ const dimensions = ["Knowledge", "Hands-on", "Project proof", "Production", "Int
 const keys = ["knowledge", "hands_on", "project_proof", "production", "interview"] as const;
 
 export function SkillsPage() {
-  const { data, add, update } = useStore();
+  const { data, add, update, day: localDay } = useStore();
   const safeUpdate: typeof update = (...args) =>
     update(...args).catch((cause) =>
       setError(cause instanceof Error ? cause.message : "Could not save this change."),

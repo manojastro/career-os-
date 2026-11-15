@@ -468,10 +468,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         complete: session.save.complete,
       }),
     });
-    if (!response.ok)
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      if (result?.error === "active_focus_conflict" || result?.error === "legacy_focus_overlap")
+        throw new Error(
+          "This local timer overlaps shared Focus. It remains unsaved; resolve the shared interval or discard this local timer to avoid counting time twice.",
+        );
       throw new Error(
         "Focus could not be saved. Retry the same session; it will not be counted twice.",
       );
+    }
     await refresh({ silent: true });
   };
   const setCompleted = async (table: EntityName, id: string, complete: boolean) => {

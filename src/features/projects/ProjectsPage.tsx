@@ -11,7 +11,7 @@ import {
   Section,
   dateLabel,
 } from "@/components/ui";
-import { localDay, projectProgress } from "@/lib/domain/insights";
+import { projectProgress } from "@/lib/domain/insights";
 import { Project } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
 
@@ -25,7 +25,7 @@ const statuses: Project["status"][] = [
 ];
 
 export function ProjectsPage() {
-  const { data, add, update } = useStore();
+  const { data, add, update, day: localDay } = useStore();
   const safeUpdate: typeof update = (...args) =>
     update(...args).catch((cause) =>
       setError(cause instanceof Error ? cause.message : "Could not save this change."),

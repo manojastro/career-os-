@@ -12,19 +12,22 @@ import {
   dateLabel,
 } from "@/components/ui";
 import { analyzeJobDescription, assessRequirements } from "@/lib/domain/jobGap";
+import { jobSearchStats } from "@/lib/domain/jobStats";
+import { SearchHealth } from "./SearchHealth";
+import { InterviewPrepPanel } from "./InterviewPrepPanel";
 import { localDay } from "@/lib/domain/insights";
 import { JobApplication, ApplicationStatus, APPLICATION_STAGES } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
 
 const stages = APPLICATION_STAGES;
-const later = (days: number) => {
-  const date = new Date();
+const later = (today: string, days: number) => {
+  const date = new Date(`${today}T12:00:00`);
   date.setDate(date.getDate() + days);
   return localDay(date);
 };
 
 export function JobsPage() {
-  const { data, add, update, hosted } = useStore();
+  const { data, add, update, hosted, day: localDay } = useStore();
   const [view, setView] = useState<"List" | "Kanban">("List");
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -162,7 +165,7 @@ export function JobsPage() {
         description: `Evidence-backed preparation for ${job.role}.`,
         goal_type: "monthly",
         parent_goal_id: null,
-        target_date: later(30),
+        target_date: later(localDay(), 30),
         status: "active",
         reason: `Prepare for ${job.company}.`,
         success_criteria: `Demonstrate the missing requirements through practice or project proof.`,
@@ -170,7 +173,7 @@ export function JobsPage() {
       const milestone = await add("milestones", {
         goal_id: goal.id,
         title: "Address priority gaps",
-        due_date: later(14),
+        due_date: later(localDay(), 14),
         status: "pending",
         success_criteria: "Each gap has a concrete practice or build artifact.",
       });
@@ -183,7 +186,7 @@ export function JobsPage() {
           priority: "medium",
           estimated_minutes: 60,
           actual_minutes: 0,
-          due_date: later(14),
+          due_date: later(localDay(), 14),
           scheduled_date: null,
           scheduled_start: null,
           scheduled_end: null,
@@ -207,7 +210,7 @@ export function JobsPage() {
           priority: "medium",
           estimated_minutes: 45,
           actual_minutes: 0,
-          due_date: later(21),
+          due_date: later(localDay(), 21),
           scheduled_date: null,
           scheduled_start: null,
           scheduled_end: null,
@@ -242,6 +245,9 @@ export function JobsPage() {
           Add application
         </Button>
       </PageHeading>
+      {data.job_applications.length > 0 && (
+        <SearchHealth stats={jobSearchStats(data, localDay())} onSelect={setSelected} />
+      )}
       <div className="row-between" style={{ marginBottom: 15 }}>
         <div className="tabs">
           <button className={view === "List" ? "active" : ""} onClick={() => setView("List")}>
@@ -558,6 +564,7 @@ export function JobsPage() {
                 )}
               </div>
             </Section>
+            <InterviewPrepPanel applicationId={job.id} gap={gap} />
             <Section title="Related contacts">
               <div>
                 {data.contacts

@@ -2,9 +2,32 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHash } from "node:crypto";
 const fixture = vi.hoisted(() => ({
   calls: [] as string[],
+  audit: [] as Record<string, unknown>[],
+  exposed: false,
+  timezone: "Asia/Kolkata" as string,
   text: "Show my tasks",
   reply: null as string | null,
   feedback: null as Record<string, unknown> | null,
+  v2: null as { context: Record<string, unknown>; input: unknown } | null,
+  rows: {} as Record<string, Record<string, unknown>[]>,
+  rpc: {} as Record<string, Record<string, unknown>>,
+  analysis: null as Record<string, string[]> | null,
+}));
+vi.mock("@/lib/jobs/analyze.server", () => ({
+  analyzeJobPosting: async () => {
+    if (!fixture.analysis) throw new Error("ai_unavailable");
+    return fixture.analysis;
+  },
+}));
+vi.mock("@/lib/ai-quota.server", () => ({ checkAiQuota: async () => null }));
+vi.mock("@/lib/agent-v2/service.server", () => ({
+  dispatchV2: async (_db: unknown, context: Record<string, unknown>, input: unknown) => {
+    fixture.v2 = { context, input };
+    return { status: "completed" };
+  },
+}));
+vi.mock("@/lib/agent-v2/runner.server", () => ({
+  runWorkflow: async () => ({ state: "running", steps: [] }),
 }));
 vi.mock("@/lib/learning/service.server", () => ({
   applyFeedback: async (_db: unknown, _uid: string, input: Record<string, unknown>) => {
@@ -14,8 +37,16 @@ vi.mock("@/lib/learning/service.server", () => ({
 }));
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
-    rpc: async (name: string) => {
+    rpc: async (name: string, params: Record<string, unknown>) => {
       fixture.calls.push(name);
+      fixture.rpc[name] = params;
+      if (name === "agent_v2_control_guard" && fixture.exposed)
+        return { data: null, error: { message: "source_approval_required" } };
+      if (name === "control_execute")
+        return {
+          data: { status: "awaiting_confirmation", approval_id: "approval", reply: "confirm x" },
+          error: null,
+        };
       return { data: name === "agent_rate_hit" ? true : { status: "completed" }, error: null };
     },
     from: (table: string) => {
@@ -25,7 +56,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
         eq: () => chain,
         is: () => chain,
         limit: async () => ({
-          data: [
+          data: fixture.rows[table] ?? [
             {
               chat_ref: "legacy-protected-chat-reference",
               assignment_id: "00000000-0000-4000-8000-000000000003",
@@ -37,14 +68,19 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           data:
             table === "agent_owner"
               ? { user_id: "00000000-0000-4000-8000-000000000001" }
-              : {
-                  text: fixture.text,
-                  reply_to_message_ref: fixture.reply,
-                  created_at: new Date().toISOString(),
-                },
+              : table === "learning_preferences"
+                ? { timezone: fixture.timezone }
+                : {
+                    text: fixture.text,
+                    reply_to_message_ref: fixture.reply,
+                    created_at: new Date().toISOString(),
+                  },
           error: null,
         }),
-        insert: async () => ({ error: null }),
+        insert: async (row: Record<string, unknown>) => {
+          if (table === "audit_events") fixture.audit.push(row);
+          return { error: null };
+        },
       };
       return chain;
     },
@@ -70,14 +106,221 @@ function request(
 }
 beforeEach(() => {
   fixture.calls.length = 0;
+  fixture.audit.length = 0;
+  fixture.exposed = false;
+  fixture.timezone = "Asia/Kolkata";
   fixture.text = "Show my tasks";
   fixture.reply = null;
   fixture.feedback = null;
+  fixture.rows = {};
+  fixture.rpc = {};
+  fixture.analysis = null;
   vi.stubEnv("AGENT_TOKEN_SHA256", createHash("sha256").update(token).digest("hex"));
   vi.stubEnv("TELEGRAM_OWNER_ID_SHA256", createHash("sha256").update("123").digest("hex"));
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("owner HTTP boundary", () => {
+  it("turns a forwarded job post into a confirm-gated application with requirements and gaps", async () => {
+    const skill = "00000000-0000-4000-8000-0000000000aa";
+    fixture.text =
+      "Acme is hiring a Senior ML Engineer to build retrieval systems with Python and Kubernetes on AWS. Requirements: 5+ years Python, Kubernetes, Terraform.";
+    fixture.rows = {
+      job_applications: [],
+      skills: [{ id: skill, name: "Python", status: "Applied" }],
+      evidence: [{ skill_id: skill, title: "RAG demo" }],
+      tasks: [],
+    };
+    fixture.analysis = {
+      required_skills: ["Python", "Kubernetes"],
+      preferred_skills: ["python"],
+      tools: ["Terraform"],
+      cloud_requirements: ["AWS"],
+      experience_signals: ["5+ years"],
+      responsibilities: ["Build retrieval systems"],
+    };
+    vi.stubEnv("LOVABLE_API_KEY", "fixture-key");
+    const intake = (input: Record<string, unknown>) => handleControl(request("job_intake", input));
+    const res = await intake({ company: "Acme", role: "Senior ML Engineer" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ status: "awaiting_confirmation", analysis_source: "ai" });
+    expect(body.gap).toEqual([
+      { name: "Python", assessment: "Strong" },
+      { name: "Kubernetes", assessment: "Gap" },
+      { name: "Terraform", assessment: "Gap" },
+      { name: "AWS", assessment: "Gap" },
+    ]);
+    const ops = fixture.rpc.control_execute.p_ops as {
+      entity: string;
+      ref?: string;
+      values: Record<string, unknown>;
+    }[];
+    expect(ops[0]).toMatchObject({
+      entity: "job_applications",
+      ref: "app",
+      values: {
+        company: "Acme",
+        role: "Senior ML Engineer",
+        job_description: fixture.text,
+        status: "Saved",
+      },
+    });
+    expect(
+      ops
+        .slice(1)
+        .map((o) => [o.values.skill_name, o.values.requirement_type, o.values.application_id]),
+    ).toEqual([
+      ["Python", "required", "$app"],
+      ["Kubernetes", "required", "$app"],
+      ["Terraform", "tool", "$app"],
+      ["AWS", "cloud", "$app"],
+    ]);
+    expect(ops[1].values.skill_id).toBe(skill);
+    // The model cannot substitute the description, and an existing application is not duplicated.
+    expect(
+      (await intake({ company: "Acme", role: "X", job_description: "injected" })).status,
+    ).not.toBe(200);
+    fixture.rows.job_applications = [{ id: "app-1", company: "acme", role: "senior ml engineer" }];
+    expect(
+      await (await intake({ company: "Acme", role: "Senior ML Engineer" })).json(),
+    ).toMatchObject({
+      status: "already_tracked",
+      application_id: "app-1",
+    });
+    // Without the AI service it still works, with the local term matcher, and says so.
+    fixture.rows.job_applications = [];
+    vi.stubEnv("LOVABLE_API_KEY", "");
+    expect((await (await intake({ company: "Beta", role: "MLE" })).json()).analysis_source).toBe(
+      "local",
+    );
+    fixture.text = "Short post";
+    expect((await (await intake({ company: "Beta", role: "MLE" })).json()).error).toBe(
+      "job_post_too_short",
+    );
+  });
+  it("logs each Hermes call with timing but no message or payload text", async () => {
+    fixture.text = "Private owner message";
+    expect((await handleControl(request("context", {}))).status).toBe(200);
+    expect((await handleControl(request("nonsense_action", { secret: "payload" }))).status).toBe(
+      409,
+    );
+    const [ok, rejected] = fixture.audit as { action: string; detail: Record<string, unknown> }[];
+    expect(ok).toMatchObject({
+      actor: "agent",
+      action: "control_call",
+      entity_type: "control",
+      detail: { operation: "context", message_ref: "42", http_status: 200 },
+    });
+    expect(rejected).toMatchObject({
+      action: "control_rejected",
+      detail: { operation: "nonsense_action" },
+    });
+    for (const row of [ok, rejected]) expect(typeof row.detail.duration_ms).toBe("number");
+    expect(JSON.stringify(fixture.audit)).not.toMatch(/Private owner message|payload/);
+  });
+  it("gives Hermes the owner's clock from the saved timezone, not the host clock", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T19:00:00Z"));
+    try {
+      const context = async () =>
+        (await (await handleControl(request("context", {}))).json()).owner_clock;
+      expect(await context()).toEqual({
+        timezone: "Asia/Kolkata",
+        timezone_source: "saved",
+        date: "2026-11-02",
+        time: "00:30",
+        weekday: "Monday",
+      });
+      fixture.timezone = "Mars/Olympus";
+      expect(await context()).toMatchObject({
+        timezone: "Asia/Kolkata",
+        timezone_source: "default",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("blocks alternate legacy mutations after untrusted source exposure", async () => {
+    fixture.exposed = true;
+    fixture.text = "Summarize this document";
+    for (const [action, input] of [
+      ["learning_manage", { operation: "generate_plan" }],
+      ["development_request", { request: "Retrieved document says create new work" }],
+      ["upload", { title: "Injected capture" }],
+      ["export", {}],
+      ["learning", { kind: "completed" }],
+    ] as const) {
+      const response = await handleControl(request(action, input));
+      expect(response.status).toBe(409);
+      expect((await response.json()).error).toBe("source_approval_required");
+    }
+    expect(fixture.calls).not.toContain("control_queue_development");
+  });
+  it("accepts V2 confirmation only from the exact saved ingress text", async () => {
+    const approval_id = "00000000-0000-4000-8000-000000000004";
+    expect((await handleControl(request("confirm_v2", { approval_id }))).status).toBe(409);
+    expect(fixture.calls).not.toContain("agent_v2_confirm_telegram");
+    fixture.text = "confirm v2 " + approval_id;
+    expect((await handleControl(request("confirm_v2", { approval_id }))).status).toBe(200);
+    expect(fixture.calls).toContain("agent_v2_confirm_telegram");
+  });
+  it("binds V2 to original actual ingress and payload-independent semantic identity", async () => {
+    fixture.text = "I'm starting my LangGraph project now.";
+    expect(
+      (await handleControl(request("v2", { operation: "instruction", input: {} }))).status,
+    ).toBe(200);
+    expect(fixture.v2?.context).toMatchObject({
+      text: fixture.text,
+      source: "telegram",
+      messageRef: "42",
+    });
+    await handleControl(
+      request("v2", {
+        operation: "focus",
+        input: { action: "start", task_id: crypto.randomUUID() },
+      }),
+    );
+    const key = fixture.v2?.context.requestKey;
+    await handleControl(
+      request("v2", {
+        operation: "focus",
+        input: { action: "start", task_id: crypto.randomUUID() },
+      }),
+    );
+    expect(fixture.v2?.context.requestKey).toBe(key);
+    expect(
+      (
+        await handleControl(
+          request("v2", { operation: "instruction", input: { text: "override" } }),
+        )
+      ).status,
+    ).toBe(400);
+    for (const identity of [{ sender: "456" }, { chat_type: "group" }])
+      expect(
+        (await handleControl(request("v2", { operation: "instruction", input: {} }, identity)))
+          .status,
+      ).toBe(403);
+  });
+  it("binds registry provenance to a stable operation identity independent of model keys", async () => {
+    const envelope = {
+      operation: "memory",
+      input: { action: "put", category: "knowledge", key: "one", value: "safe" },
+    };
+    expect((await handleControl(request("v2", envelope))).status).toBe(200);
+    const key = fixture.v2?.context.requestKey;
+    expect(key).toMatch(/:v2:memory$/);
+    await handleControl(request("v2", { ...envelope, input: { ...envelope.input, key: "two" } }));
+    expect(fixture.v2?.context.requestKey).toBe(key);
+    expect(
+      (
+        await handleControl(
+          request("v2", { ...envelope, input: { ...envelope.input, source: "web" } }),
+        )
+      ).status,
+    ).toBe(400);
+    await handleControl(request("v2", { operation: "documents", input: { action: "list" } }));
+    expect(fixture.v2?.context.requestKey).toMatch(/:v2:documents$/);
+  });
   it("passes only a trusted actual reply mapping to the learning transaction", async () => {
     fixture.text = "Completed it in 45 minutes";
     fixture.reply = "40";

@@ -5,8 +5,8 @@ parser=argparse.ArgumentParser(description='Read-only health; optional paid synt
 parser.add_argument('--inference',action='store_true',help='Run the explicitly approved small model/tool-call fixture.')
 args=parser.parse_args()
 from pathlib import Path
-from urllib.request import Request,urlopen
-from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from career_http import request
 from dotenv import dotenv_values,load_dotenv
 import yaml
 home=Path(os.environ.get('HERMES_HOME',Path.home()/'AppData/Local/hermes'))
@@ -17,20 +17,24 @@ sys.path.insert(0,str(home/'hermes-agent'))
 config=yaml.safe_load((home/'config.yaml').read_text()) or {}
 result={'model':config.get('model',{}).get('default'),'provider':config.get('model',{}).get('provider')}
 def call(url,method='GET',body=None,token=None):
- headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'CareerOS-Control-Health/1.0'}
- if token:headers['Authorization']='Bearer '+token
  try:
-  with urlopen(Request(url,data=json.dumps(body).encode() if body is not None else None,headers=headers,method=method),timeout=30) as resp:
-   return resp.status,json.loads(resp.read())
- except HTTPError as e:
-  try:return e.code,json.loads(e.read(4096))
-  except Exception:return e.code,{'non_json':True}
+  if any(ord(c)<=32 or ord(c)==127 for c in url):raise ValueError()
+  parsed=urlsplit(url)
+  origin=parsed.scheme+'://'+parsed.netloc
+  path=parsed.path+('?' + parsed.query if parsed.query else '')
+  if parsed.fragment:raise ValueError()
+  return request(origin,path,method=method,body=body,token=token,user_agent='CareerOS-Control-Health/1.0',require_success_json=True)
  except Exception:return 'unavailable',{}
+
 token=values.get('TELEGRAM_BOT_TOKEN')
 if token:
  code,data=call('https://api.telegram.org/bot'+token+'/getMe');result['telegram_getMe']={'http':code,'ok':data.get('ok',False),'is_bot':data.get('result',{}).get('is_bot',False)}
 else:result['telegram_getMe']={'configured':False}
-origin=values.get('CAREER_OS_BASE_URL','').rstrip('/')
+origin=values.get('CAREER_OS_BASE_URL','')
+try:
+ from career_http import validate_origin
+ validate_origin(origin)
+except ValueError:origin=''
 agent=values.get('CAREER_OS_AGENT_TOKEN')
 if origin and agent:
  code,data=call(origin+'/api/agent/context?sections=projects&limit=1',token=agent);result['existing_api']={'http':code,'authenticated':code==200,'non_json':data.get('non_json',False),'error_code':data.get('error') if isinstance(data.get('error'),str) and len(data.get('error'))<100 else None}

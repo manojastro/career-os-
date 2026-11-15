@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Section, Button, Field, PageHeading, Empty } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { useFocus } from "@/features/focus/FocusProvider";
@@ -18,6 +18,9 @@ import {
   useRows,
   type Row,
 } from "./agentData";
+import { auditLabel, usageLabel, usageSummary, workerActivity } from "./activity";
+import { TelegramActivity } from "./TelegramActivity";
+import { Link } from "@/lib/router-compat";
 
 const noop = () => {};
 
@@ -1783,34 +1786,78 @@ function ActivityInner() {
   const runs = useRows("agent_runs", { order: "started_at", limit: 200 });
   const cmds = useRows("agent_commands", { order: "created_at", limit: 50 });
   const notes = useRows("agent_notifications", { order: "created_at", limit: 50 });
-  const audit = useRows("audit_events", { order: "created_at", limit: 60 });
+  // Hermes Telegram calls have their own section; keep the audit trail for record changes.
+  const audit = useRows("audit_events", {
+    order: "created_at",
+    limit: 60,
+    filter: (q) => q.not("action", "in", "(control_call,control_rejected)"),
+  });
+  const owner = useRows("agent_owner", { order: "bound_at", limit: 1 });
+  const prefs = useRows("career_preferences", { order: "created_at", limit: 1 });
   const [msg, setMsg] = useState("");
+  const [runFilter, setRunFilter] = useState({ workflow: "", status: "", shown: 30 });
   const workflows = useMemo(
     () => Array.from(new Set([...WORKFLOWS, ...runs.rows.map((r) => r["workflow"])])),
     [runs.rows],
+  );
+  const activity = workerActivity(
+    runs.rows,
+    cmds.rows,
+    Date.now(),
+    owner.rows[0]?.["worker_seen_at"],
+  );
+  const lastSeen = activity.last
+    ? `last worker activity ${ist(activity.last)}`
+    : "no worker activity recorded yet";
+  const shownRuns = runs.rows.filter(
+    (r) =>
+      (!runFilter.workflow || r["workflow"] === runFilter.workflow) &&
+      (!runFilter.status || r["status"] === runFilter.status),
   );
   const runNow = async (wf: string) => {
     setMsg("");
     try {
       await queueCommand("run_now", wf);
-      setMsg(`Queued ${wf.replaceAll("_", " ")}. The worker claims it on its next poll.`);
+      setMsg(
+        `Queued ${wf.replaceAll("_", " ")}. It runs only when the worker next polls (${lastSeen}).`,
+      );
       cmds.reload();
-    } catch (x) {
-      setMsg((x as Error).message);
+    } catch {
+      setMsg("Could not queue this run. Try again.");
     }
   };
-  const usage = runs.rows.reduce(
-    (acc, r) => {
-      const u = r["usage"] ?? {};
-      acc.tokens += Number(u["input_tokens"] ?? 0) + Number(u["output_tokens"] ?? 0);
-      acc.cost += Number(u["cost_usd"] ?? 0);
-      return acc;
-    },
-    { tokens: 0, cost: 0 },
-  );
+  const cancel = async (id: string) => {
+    setMsg("");
+    try {
+      await updateRow("agent_commands", id, { status: "cancelled" });
+    } catch {
+      setMsg("Could not cancel: the worker may already have claimed this command.");
+    }
+    cmds.reload();
+  };
+  const markRead = async (id: string) => {
+    try {
+      await updateRow("agent_notifications", id, { read_at: new Date().toISOString() });
+      notes.reload();
+    } catch {
+      setMsg("Could not mark this notification as read. Try again.");
+    }
+  };
+  const pending =
+    cmds.rows.some((c) => c["status"] === "queued" || c["status"] === "claimed") ||
+    runs.rows.some((r) => r["status"] === "running");
+  const { reload: reloadRuns } = runs;
+  const { reload: reloadCmds } = cmds;
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      void reloadRuns();
+      void reloadCmds();
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [pending, reloadRuns, reloadCmds]);
   const failures = runs.rows.filter((r) => r["status"] === "failed");
-  const owner = useRows("agent_owner", { order: "bound_at", limit: 1 });
-  const prefs = useRows("career_preferences", { order: "created_at", limit: 1 });
   const paused: string[] = prefs.rows[0]?.["paused_workflows"] ?? [];
   const linked = !!owner.rows[0];
   return (
@@ -1821,11 +1868,28 @@ function ActivityInner() {
           gets delivered. Link it in Settings.
         </div>
       )}
+      {linked && !runs.loading && !cmds.loading && (
+        <div
+          className={activity.waiting || activity.online === false ? "alert" : "small muted"}
+          role="status"
+        >
+          {activity.online === true && !activity.waiting ? (
+            `Worker online · ${lastSeen}.`
+          ) : activity.waiting || activity.online === false ? (
+            <>
+              <strong>Worker may be offline.</strong>{" "}
+              {activity.waiting
+                ? `${activity.waiting} command${activity.waiting === 1 ? " has" : "s have"} waited over 10 minutes without being claimed; `
+                : ""}
+              nothing runs until the worker polls again ({lastSeen}).
+            </>
+          ) : (
+            `Online status unknown: no worker check-in has been recorded; ${lastSeen}.`
+          )}
+        </div>
+      )}
       {msg && <div className="alert">{msg}</div>}
-      <Section
-        title="Workflows"
-        meta={`${runs.rows.length} runs · ${usage.tokens.toLocaleString("en-IN")} tokens · $${usage.cost.toFixed(2)}`}
-      >
+      <Section title="Workflows" meta={usageLabel(usageSummary(runs.rows))}>
         <ErrorLine error={runs.error} />
         <div style={{ overflowX: "auto" }}>
           <table className="data-table">
@@ -1855,13 +1919,21 @@ function ActivityInner() {
                       {last ? (
                         <StatusBadge status={last["status"]} />
                       ) : (
-                        <span className="muted">—</span>
+                        <span className="muted">{activity.last ? "—" : "No worker connected"}</span>
                       )}
                     </td>
                     <td>{last?.["next_run_at"] ? ist(last["next_run_at"]) : "—"}</td>
                     <td align="right">
-                      <Button disabled={!linked} onClick={() => void runNow(wf)}>
-                        Run now
+                      <Button
+                        disabled={!linked}
+                        title={
+                          activity.last
+                            ? undefined
+                            : "No worker has reported activity; this waits until one polls."
+                        }
+                        onClick={() => void runNow(wf)}
+                      >
+                        {activity.last ? "Run now" : "Queue"}
                       </Button>
                     </td>
                   </tr>
@@ -1871,15 +1943,52 @@ function ActivityInner() {
           </table>
         </div>
       </Section>
+      <TelegramActivity />
       <div className="grid-two">
         <Section title="Recent runs" meta={`${failures.length} failed`}>
-          {runs.rows.length === 0 ? (
+          {runs.rows.length > 0 && (
+            <div className="row" style={{ gap: 8, padding: "8px 12px", flexWrap: "wrap" }}>
+              <select
+                className="input"
+                aria-label="Filter runs by workflow"
+                value={runFilter.workflow}
+                onChange={(e) =>
+                  setRunFilter({ ...runFilter, workflow: e.target.value, shown: 30 })
+                }
+              >
+                <option value="">All workflows</option>
+                {workflows.map((wf) => (
+                  <option key={wf} value={wf}>
+                    {wf.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                aria-label="Filter runs by status"
+                value={runFilter.status}
+                onChange={(e) => setRunFilter({ ...runFilter, status: e.target.value, shown: 30 })}
+              >
+                <option value="">Any status</option>
+                {[...new Set(runs.rows.map((r) => String(r["status"])))].map((s) => (
+                  <option key={s} value={s}>
+                    {s.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {shownRuns.length === 0 ? (
             <Empty
-              title="No runs reported yet"
-              detail="Once the worker is connected, every run appears here."
+              title={runs.rows.length ? "No runs match" : "No runs reported yet"}
+              detail={
+                runs.rows.length
+                  ? "Change the filters to see other runs."
+                  : "Once the worker is connected, every run appears here."
+              }
             />
           ) : (
-            runs.rows.slice(0, 30).map((r) => (
+            shownRuns.slice(0, runFilter.shown).map((r) => (
               <div className="list-row small" key={r.id}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <strong>{r["workflow"].replaceAll("_", " ")}</strong>
@@ -1909,8 +2018,15 @@ function ActivityInner() {
               </div>
             ))
           )}
+          {shownRuns.length > runFilter.shown && (
+            <div style={{ padding: 12 }}>
+              <Button onClick={() => setRunFilter({ ...runFilter, shown: runFilter.shown + 30 })}>
+                Show more ({shownRuns.length - runFilter.shown} older)
+              </Button>
+            </div>
+          )}
         </Section>
-        <Section title="Command queue">
+        <Section title="Command queue" meta={pending ? "Refreshing every 15 s" : undefined}>
           <ErrorLine error={cmds.error} />
           {cmds.rows.length === 0 ? (
             <Empty
@@ -1932,14 +2048,7 @@ function ActivityInner() {
                   {c["completed_at"] ? ` · finished ${ist(c["completed_at"])}` : ""}
                 </div>
                 {c["status"] === "queued" && (
-                  <Button
-                    style={{ marginTop: 6 }}
-                    onClick={() =>
-                      void updateRow("agent_commands", c.id, { status: "cancelled" }).then(
-                        cmds.reload,
-                      )
-                    }
-                  >
+                  <Button style={{ marginTop: 6 }} onClick={() => void cancel(c.id)}>
                     Cancel
                   </Button>
                 )}
@@ -1969,11 +2078,7 @@ function ActivityInner() {
                   <button
                     className="link"
                     style={{ border: 0, background: "none", padding: 0 }}
-                    onClick={() =>
-                      void updateRow("agent_notifications", n.id, {
-                        read_at: new Date().toISOString(),
-                      }).then(notes.reload)
-                    }
+                    onClick={() => void markRead(n.id)}
                   >
                     Mark read
                   </button>
@@ -1986,13 +2091,22 @@ function ActivityInner() {
           {audit.rows.length === 0 ? (
             <Empty title="No audit events yet" />
           ) : (
-            audit.rows.map((a) => (
-              <div className="list-row small" key={a.id}>
-                <strong>{a["actor"]}</strong> {a["action"]} {a["entity_type"].replaceAll("_", " ")}
-                {a["detail"]?.["status"] ? ` → ${a["detail"]["status"]}` : ""}{" "}
-                <span className="muted">· {ist(a["created_at"])}</span>
-              </div>
-            ))
+            audit.rows.map((a) => {
+              const label = auditLabel(a);
+              return (
+                <div className="list-row small" key={a.id}>
+                  {label.text} <span className="muted">· {ist(a["created_at"])}</span>
+                  {label.path && (
+                    <>
+                      {" "}
+                      <Link href={label.path} className="link">
+                        Open
+                      </Link>
+                    </>
+                  )}
+                </div>
+              );
+            })
           )}
         </Section>
       </div>

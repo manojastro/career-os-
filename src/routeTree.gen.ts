@@ -28,6 +28,7 @@ import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as VaultRouteImport } from './routes/vault'
+import { Route as ApiV2RouteImport } from './routes/api/v2'
 import { Route as ApiVersionRouteImport } from './routes/api/version'
 import { Route as ApiAgentCommandsRouteImport } from './routes/api/agent/commands'
 import { Route as ApiAgentContextRouteImport } from './routes/api/agent/context'
@@ -134,6 +135,11 @@ const VaultRoute = VaultRouteImport.update({
   path: '/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV2Route = ApiV2RouteImport.update({
+  id: '/api/v2',
+  path: '/api/v2',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVersionRoute = ApiVersionRouteImport.update({
   id: '/api/version',
   path: '/api/version',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/today': typeof TodayRoute
   '/vault': typeof VaultRoute
+  '/api/v2': typeof ApiV2Route
   '/api/version': typeof ApiVersionRoute
   '/api/agent/commands': typeof ApiAgentCommandsRoute
   '/api/agent/context': typeof ApiAgentContextRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/today': typeof TodayRoute
   '/vault': typeof VaultRoute
+  '/api/v2': typeof ApiV2Route
   '/api/version': typeof ApiVersionRoute
   '/api/agent/commands': typeof ApiAgentCommandsRoute
   '/api/agent/context': typeof ApiAgentContextRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/today': typeof TodayRoute
   '/vault': typeof VaultRoute
+  '/api/v2': typeof ApiV2Route
   '/api/version': typeof ApiVersionRoute
   '/api/agent/commands': typeof ApiAgentCommandsRoute
   '/api/agent/context': typeof ApiAgentContextRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/today'
     | '/vault'
+    | '/api/v2'
     | '/api/version'
     | '/api/agent/commands'
     | '/api/agent/context'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/today'
     | '/vault'
+    | '/api/v2'
     | '/api/version'
     | '/api/agent/commands'
     | '/api/agent/context'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/today'
     | '/vault'
+    | '/api/v2'
     | '/api/version'
     | '/api/agent/commands'
     | '/api/agent/context'
@@ -395,6 +407,7 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   TodayRoute: typeof TodayRoute
   VaultRoute: typeof VaultRoute
+  ApiV2Route: typeof ApiV2Route
   ApiVersionRoute: typeof ApiVersionRoute
   ApiAgentCommandsRoute: typeof ApiAgentCommandsRoute
   ApiAgentContextRoute: typeof ApiAgentContextRoute
@@ -542,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v2': {
+      id: '/api/v2'
+      path: '/api/v2'
+      fullPath: '/api/v2'
+      preLoaderRoute: typeof ApiV2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/version': {
       id: '/api/version'
       path: '/api/version'
@@ -635,6 +655,7 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   TodayRoute: TodayRoute,
   VaultRoute: VaultRoute,
+  ApiV2Route: ApiV2Route,
   ApiVersionRoute: ApiVersionRoute,
   ApiAgentCommandsRoute: ApiAgentCommandsRoute,
   ApiAgentContextRoute: ApiAgentContextRoute,

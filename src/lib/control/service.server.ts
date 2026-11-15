@@ -5,6 +5,11 @@ import { readJsonLimited } from "@/lib/learning/http";
 import { registry, validateOperations, verifyTelegramIdentity } from "./protocol";
 import { csvCell } from "./csv";
 import { verifyFeedbackIntent } from "./learning-feedback";
+import { DEFAULT_TZ, isValidTimeZone, zonedParts } from "@/lib/learning/engine";
+import { checkAiQuota } from "@/lib/ai-quota.server";
+import { analyzeJobPosting, type JobAnalysis } from "@/lib/jobs/analyze.server";
+import { analyzeJobDescription, assessRequirements } from "@/lib/domain/jobGap";
+import type { AppData } from "@/lib/domain/types";
 import { allRows, query, resolve, search, report, rpc, type Db } from "./queries.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database";
@@ -14,10 +19,11 @@ const envelope = z
       .object({ sender: z.string(), chat: z.string(), chat_type: z.string(), message: z.string() })
       .strict(),
     action: z.string().max(40),
-    input: z.record(z.unknown()).default({}),
+    input: z.record(z.string(), z.unknown()).default({}),
   })
   .strict();
 const errorCodes = [
+  "source_approval_required",
   "invalid_recurrence",
   "invalid_completion",
   "skill_name_exists",
@@ -73,8 +79,10 @@ const errorCodes = [
   "export_too_large_use_entity_export",
   "CSV_requires_one_entity",
   "invalid_attachment",
+  "job_post_too_short",
 ];
 export async function handleControl(request: Request): Promise<Response> {
+  const started = Date.now();
   const denied = verifyAgentToken(request);
   if (denied) return denied;
   const json = await readJsonLimited(request, 9_000_000);
@@ -104,6 +112,36 @@ export async function handleControl(request: Request): Promise<Response> {
     if (ownerError || !owner?.user_id) return agentJson({ error: "owner_not_bound" }, 409);
     const uid = String(owner.user_id);
     auditUid = uid;
+    // Per-call log for Agent Activity: operation names, status and timing only, never text.
+    const note = async (status: number, body?: unknown) => {
+      const error =
+        body && typeof body === "object" && "error" in body ? String(body.error) : undefined;
+      const step = stepOf(action, input);
+      try {
+        await db.from("audit_events").insert({
+          user_id: uid,
+          actor: "agent",
+          action: status >= 400 ? "control_rejected" : "control_call",
+          entity_type: "control",
+          source: "agent",
+          detail: {
+            chat_ref: chat,
+            message_ref: identity.message,
+            operation: action,
+            ...(step ? { step } : {}),
+            ...(error && /^[a-z_]{1,80}$/.test(error) ? { error } : {}),
+            http_status: status,
+            duration_ms: Date.now() - started,
+          },
+        });
+      } catch {
+        /* Logging must never change the reported result. */
+      }
+    };
+    const logged = async (body: unknown, status = 200) => {
+      await note(status, body);
+      return agentJson(body, status);
+    };
     const key =
       "tg:" +
       chat.slice(0, 16) +
@@ -124,7 +162,7 @@ export async function handleControl(request: Request): Promise<Response> {
           .optional()
           .parse(input.reply_to_message_ref) ?? null;
       if (/sk-or-v1-[a-f0-9]{32,}|\b\d{7,12}:[A-Za-z0-9_-]{30,}/.test(text))
-        return agentJson({ error: "use_secure_credentials_interface" }, 400);
+        return logged({ error: "use_secure_credentials_interface" }, 400);
       const { data: prior, error } = await db
         .from("control_messages")
         .select("id,text,reply_to_message_ref")
@@ -145,7 +183,7 @@ export async function handleControl(request: Request): Promise<Response> {
         });
         if (error) throw new Error("context_save_failed");
       }
-      return agentJson({ status: "ready" });
+      return logged({ status: "ready" });
     }
     const { data: message, error: messageError } = await db
       .from("control_messages")
@@ -156,10 +194,197 @@ export async function handleControl(request: Request): Promise<Response> {
       .maybeSingle();
     if (messageError || !message || Date.parse(message.created_at) < Date.now() - 1800000)
       throw new Error("inbound_context_required");
+    if (
+      ["development_request", "upload", "export", "learning"].includes(action) ||
+      (action === "learning_manage" && input.operation === "generate_plan")
+    ) {
+      await rpc(db, "agent_v2_control_guard", {
+        p_uid: uid,
+        p_chat: chat,
+        p_message: identity.message,
+      });
+    }
+    if (action === "confirm_v2") {
+      const id = z.object({ approval_id: z.uuid() }).strict().parse(input).approval_id;
+      if (message.text !== "confirm v2 " + id) throw new Error("invalid_confirmation");
+      const requestKey = "tg:" + chat + ":" + identity.message + ":v2:confirm";
+      const result = await rpc<{ id: string }>(db, "agent_v2_confirm_telegram", {
+        p_uid: uid,
+        p_key: requestKey,
+        p_approval: id,
+        p_chat: chat,
+        p_message: identity.message,
+      });
+      const { runWorkflow } = await import("@/lib/agent-v2/runner.server");
+      return logged(
+        await runWorkflow(
+          db,
+          {
+            uid,
+            source: "telegram",
+            requestKey,
+            text: message.text,
+            chatRef: chat,
+            messageRef: identity.message,
+          },
+          result.id,
+        ),
+      );
+    }
+    if (action === "v2") {
+      const { dispatchV2 } = await import("@/lib/agent-v2/service.server");
+      const { v2Envelope, V2Error } = await import("@/lib/agent-v2/contracts");
+      const parsed = v2Envelope.safeParse(input);
+      if (!parsed.success) return logged({ error: "invalid_request" }, 400);
+      const semantic =
+        parsed.data.operation === "focus"
+          ? "focus:" + parsed.data.input.action
+          : parsed.data.operation;
+      try {
+        return logged(
+          await dispatchV2(
+            db,
+            {
+              uid,
+              source: "telegram",
+              text: message.text,
+              chatRef: chat,
+              messageRef: identity.message,
+              requestKey: "tg:" + chat + ":" + identity.message + ":v2:" + semantic,
+            },
+            parsed.data,
+          ),
+        );
+      } catch (e) {
+        return logged(
+          { error: e instanceof V2Error ? e.code : "v2_request_failed" },
+          e instanceof V2Error ? e.status : 500,
+        );
+      }
+    }
+    if (action === "job_intake") {
+      const fields = z
+        .object({
+          company: z.string().trim().min(1).max(200),
+          role: z.string().trim().min(1).max(200),
+          location: z.string().trim().min(1).max(200).optional(),
+          job_url: z.string().url().max(2000).optional(),
+          priority: z.enum(["low", "medium", "high"]).optional(),
+        })
+        .strict()
+        .parse(input);
+      // The owner's forwarded post is the description: the model never retypes or edits it.
+      const description = message.text;
+      if (description.trim().length < 80) throw new Error("job_post_too_short");
+      const raw = db as unknown as Db;
+      const rows = async (table: string, columns: string) => {
+        const { data, error } = await raw
+          .from(table)
+          .select(columns)
+          .eq("user_id", uid)
+          .is("deleted_at", null)
+          .limit(1000);
+        if (error) throw new Error("context_unavailable");
+        return (data ?? []) as unknown as Record<string, unknown>[];
+      };
+      const [apps, skills, evidence, tasks] = await Promise.all([
+        rows("job_applications", "id,company,role"),
+        rows("skills", "id,name,status"),
+        rows("evidence", "skill_id,title"),
+        rows("tasks", "skill_id,title,status"),
+      ]);
+      const same = (a: unknown, b: string) =>
+        String(a ?? "")
+          .trim()
+          .toLowerCase() === b.toLowerCase();
+      const existing = apps.find(
+        (app) => same(app.company, fields.company) && same(app.role, fields.role),
+      );
+      if (existing)
+        return logged({
+          status: "already_tracked",
+          application_id: existing.id,
+          next: "Nothing was created. Update the existing application instead.",
+        });
+      const data = { skills, evidence, tasks } as unknown as AppData;
+      const apiKey = process.env.LOVABLE_API_KEY;
+      let analysis: JobAnalysis | null = null;
+      if (apiKey && !(await checkAiQuota(uid, "analyze-jd")))
+        analysis = await analyzeJobPosting(apiKey, description).catch(() => null);
+      const groups: [string, string[]][] = analysis
+        ? [
+            ["required", analysis.required_skills],
+            ["preferred", analysis.preferred_skills],
+            ["tool", analysis.tools],
+            ["cloud", analysis.cloud_requirements],
+          ]
+        : [["required", analyzeJobDescription(description, data).map((g) => g.name)]];
+      const seen = new Set<string>();
+      const requirements = groups
+        .flatMap(([type, names]) =>
+          names
+            .map((name) => name.trim().slice(0, 200))
+            .filter((name) => name && !seen.has(name.toLowerCase()) && seen.add(name.toLowerCase()))
+            .map((name) => ({ type, name })),
+        )
+        .slice(0, 49);
+      const gap = new Map(
+        assessRequirements(
+          requirements.map((r) => r.name),
+          data,
+        ).map((g) => [g.name, g.assessment]),
+      );
+      const ops = [
+        {
+          entity: "job_applications",
+          action: "create",
+          ref: "app",
+          values: {
+            company: fields.company,
+            role: fields.role,
+            ...(fields.location ? { location: fields.location } : {}),
+            ...(fields.job_url ? { job_url: fields.job_url } : {}),
+            ...(fields.priority ? { priority: fields.priority } : {}),
+            job_description: description,
+            status: "Saved",
+            date_found: (await ownerClock(db, uid)).date,
+          },
+        },
+        ...requirements.map((r) => {
+          const skill = skills.find((s) => same(s.name, r.name));
+          return {
+            entity: "job_skill_requirements",
+            action: "create",
+            values: {
+              application_id: "$app",
+              skill_name: r.name,
+              requirement_type: r.type,
+              assessment: gap.get(r.name) ?? "Gap",
+              ...(skill ? { skill_id: skill.id } : {}),
+            },
+          };
+        }),
+      ];
+      // Several linked writes always return an exact preview for the owner's confirm reply.
+      const result = await rpc<Record<string, unknown>>(db, "control_execute", {
+        p_uid: uid,
+        p_chat: chat,
+        p_message: identity.message,
+        p_key: key,
+        p_ops: validateOperations(ops),
+      });
+      return logged({
+        ...result,
+        analysis_source: analysis ? "ai" : "local",
+        gap: requirements.map((r) => ({ name: r.name, assessment: gap.get(r.name) ?? "Gap" })),
+        experience_signals: analysis?.experience_signals ?? [],
+        responsibilities: analysis?.responsibilities ?? [],
+      });
+    }
     if (action === "catalog") {
       const entity = input.entity ? String(input.entity) : null;
       if (entity && !Object.hasOwn(registry, entity)) throw new Error("unsupported_entity");
-      return agentJson({
+      return logged({
         entities: entity
           ? { [entity]: registry[entity] }
           : Object.fromEntries(
@@ -202,7 +427,9 @@ export async function handleControl(request: Request): Promise<Response> {
         .eq("chat_ref", chat)
         .maybeSingle();
       if (error) throw new Error("context_unavailable");
-      return agentJson({
+      return logged({
+        // The SDK prompt only carries the conversation's start date; give the owner's actual clock.
+        owner_clock: await ownerClock(db, uid),
         context: data,
         owner_binding: "verified",
         conversation: "authorized private Telegram",
@@ -214,14 +441,13 @@ export async function handleControl(request: Request): Promise<Response> {
         },
       });
     }
-    if (action === "query")
-      return agentJson(await query(db, uid, String(input.entity), input, chat));
-    if (action === "search") return agentJson(await search(db, uid, input, chat));
-    if (action === "resolve") return agentJson(await resolve(db, uid, chat, input));
-    if (action === "report") return agentJson(await report(db, uid, input));
+    if (action === "query") return logged(await query(db, uid, String(input.entity), input, chat));
+    if (action === "search") return logged(await search(db, uid, input, chat));
+    if (action === "resolve") return logged(await resolve(db, uid, chat, input));
+    if (action === "report") return logged(await report(db, uid, input));
     if (action === "execute") {
       const ops = validateOperations(input.operations);
-      return agentJson(
+      return logged(
         await rpc(db, "control_execute", {
           p_uid: uid,
           p_chat: chat,
@@ -251,7 +477,7 @@ export async function handleControl(request: Request): Promise<Response> {
         a.operations[0].action === "learning_workflow"
       ) {
         const { confirmWorkflow } = await import("./workflows.server");
-        return agentJson(await confirmWorkflow(db, uid, chat, identity.message, id, key));
+        return logged(await confirmWorkflow(db, uid, chat, identity.message, id, key));
       }
       if (
         Array.isArray(a.operations) &&
@@ -260,7 +486,7 @@ export async function handleControl(request: Request): Promise<Response> {
         "action" in a.operations[0] &&
         a.operations[0].action === "undo"
       )
-        return agentJson(
+        return logged(
           await rpc(db, "control_confirm_undo", {
             p_uid: uid,
             p_chat: chat,
@@ -269,7 +495,7 @@ export async function handleControl(request: Request): Promise<Response> {
             p_key: key,
           }),
         );
-      return agentJson(
+      return logged(
         await rpc(db, "control_execute", {
           p_uid: uid,
           p_chat: chat,
@@ -282,7 +508,7 @@ export async function handleControl(request: Request): Promise<Response> {
     }
     if (action === "undo") {
       const requestKey = z.string().min(8).max(200).parse(input.request_key);
-      return agentJson(
+      return logged(
         await rpc(db, "control_prepare_undo", {
           p_uid: uid,
           p_chat: chat,
@@ -297,14 +523,14 @@ export async function handleControl(request: Request): Promise<Response> {
         .parse(input.operation);
       const svc = await import("@/lib/learning/service.server");
       if (operation === "generate_plan")
-        return agentJson(await svc.generateToday(db, uid, new URL(request.url).origin));
+        return logged(await svc.generateToday(db, uid, new URL(request.url).origin));
       if (operation === "status")
-        return agentJson({
+        return logged({
           preferences: (await query(db, uid, "learning_preferences", {})).rows,
           source: (await query(db, uid, "curriculum_sources", {})).rows,
           assignments: await query(db, uid, "learning_assignments", {}),
         });
-      return agentJson(
+      return logged(
         await rpc(db, "control_prepare_workflow", {
           p_uid: uid,
           p_chat: chat,
@@ -363,7 +589,7 @@ export async function handleControl(request: Request): Promise<Response> {
       } else if (!feedback.assignment_id && !feedback.date) {
         throw new Error("needs_clarification");
       }
-      return agentJson(
+      return logged(
         await svc.applyFeedback(db, uid, {
           ...feedback,
           ...verified,
@@ -376,7 +602,7 @@ export async function handleControl(request: Request): Promise<Response> {
     }
     if (action === "development_request") {
       const text = z.string().min(5).max(20000).parse(input.request);
-      return agentJson(
+      return logged(
         await rpc(db, "control_queue_development", { p_uid: uid, p_request: text, p_key: key }),
       );
     }
@@ -405,17 +631,21 @@ export async function handleControl(request: Request): Promise<Response> {
       const { data, error } = await q;
       if (error) throw new Error("context_unavailable");
       const more = (data?.length ?? 0) > options.limit;
-      return agentJson({
+      return logged({
         changes: (data ?? []).slice(0, options.limit),
         limit: options.limit,
         has_more: more,
         next_offset: more ? options.offset + options.limit : null,
       });
     }
-    if (action === "export") return exportWorkspace(db, uid, input, key);
+    if (action === "export") {
+      const response = await exportWorkspace(db, uid, input, key);
+      await note(response.status);
+      return response;
+    }
     if (action === "upload" || action === "download") {
       const { fileAction } = await import("./files.server");
-      return agentJson(await fileAction(db, uid, action, input, key));
+      return logged(await fileAction(db, uid, action, input, key));
     }
     throw new Error("unsupported_action");
   } catch (error) {
@@ -434,6 +664,7 @@ export async function handleControl(request: Request): Promise<Response> {
             message_ref: identity.message,
             operation: action,
             error: known ?? "request_rejected",
+            duration_ms: Date.now() - started,
           },
         });
       } catch {
@@ -443,11 +674,38 @@ export async function handleControl(request: Request): Promise<Response> {
     return agentJson(
       {
         error: known ?? "request_rejected",
-        status: "No success is claimed; re-read the record before retrying a rejected operation.",
+        status:
+          known === "source_approval_required"
+            ? "Use Career OS as the signed-in owner for this action, or prepare a supported V2 workflow and confirm its exact preview."
+            : "No success is claimed; re-read the record before retrying a rejected operation.",
       },
       known ? 409 : 422,
     );
   }
+}
+/** Owner's local date/time from the saved learning timezone (Asia/Kolkata when unset). */
+async function ownerClock(db: SupabaseClient<Database>, uid: string) {
+  const { data: prefs, error } = await db
+    .from("learning_preferences")
+    .select("timezone")
+    .eq("user_id", uid)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw new Error("context_unavailable");
+  const saved = isValidTimeZone(prefs?.timezone);
+  const timezone = saved ? String(prefs?.timezone) : DEFAULT_TZ;
+  const now = zonedParts(new Date(), timezone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    timezone,
+    timezone_source: saved ? "saved" : "default",
+    date: now.date,
+    time: pad(Math.floor(now.minutes / 60)) + ":" + pad(now.minutes % 60),
+    weekday: new Date(now.date + "T12:00:00Z").toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    }),
+  };
 }
 function canonical(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(canonical);
@@ -458,6 +716,28 @@ function canonical(v: unknown): unknown {
         .map(([k, x]) => [k, canonical(x)]),
     );
   return v;
+}
+/** Coarse step label for the call log: registry entity/operation names only, never values. */
+function stepOf(action: string, input: Record<string, unknown>): string | undefined {
+  const name = (v: unknown) => (typeof v === "string" && /^[a-z_.]{1,40}$/.test(v) ? v : "");
+  const inner = input.input as Record<string, unknown> | undefined;
+  let step = "";
+  if (action === "v2")
+    step = [name(input.operation), name(inner?.action)].filter(Boolean).join(":");
+  else if (action === "learning_manage") step = name(input.operation);
+  else if (action === "learning") step = name(input.kind);
+  else if (action === "execute" && Array.isArray(input.operations))
+    step = [
+      ...new Set(
+        input.operations.map(
+          (op: Record<string, unknown>) => `${name(op?.entity)}:${name(op?.action)}`,
+        ),
+      ),
+    ]
+      .slice(0, 6)
+      .join(",");
+  else step = name(input.entity);
+  return step || undefined;
 }
 async function exportWorkspace(
   db: Db,

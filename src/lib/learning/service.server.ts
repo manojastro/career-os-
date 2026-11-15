@@ -67,6 +67,8 @@ const RPC_CODES: Record<string, number> = {
   reported_total_below_recorded: 422,
   invalid_minutes_mode: 400,
   focus_identity_conflict: 409,
+  active_focus_conflict: 409,
+  legacy_focus_overlap: 409,
   invalid_focus_session: 422,
   source_not_found: 404,
   curriculum_changed_concurrently: 409,

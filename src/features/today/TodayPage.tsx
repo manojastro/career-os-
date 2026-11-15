@@ -52,8 +52,8 @@ function SortableTask({ task }: { task: Task }) {
 
 export function TodayPage({ openTask }: { openTask: () => void }) {
   const { data, add, update, day: localDay } = useStore();
-  const tasks = todayTasks(data);
-  const overdue = overdueTasks(data);
+  const tasks = todayTasks(data, localDay());
+  const overdue = overdueTasks(data, localDay());
   const blocks = data.planner_blocks
     .filter((block) => block.block_date === localDay())
     .sort((a, b) => a.start_time.localeCompare(b.start_time));

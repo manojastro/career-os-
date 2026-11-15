@@ -12,7 +12,6 @@ import {
 } from "@/components/ui";
 import { InterviewQuestion } from "@/lib/domain/types";
 import { useStore } from "@/lib/store";
-import { localDay } from "@/lib/domain/insights";
 
 const categories: InterviewQuestion["category"][] = [
   "Technical",
@@ -27,7 +26,7 @@ const categories: InterviewQuestion["category"][] = [
 ];
 
 export function InterviewsPage() {
-  const { data, add, update, hosted, refresh } = useStore();
+  const { data, add, update, hosted, refresh, day: localDay } = useStore();
   const safeUpdate: typeof update = (...args) =>
     update(...args).catch((cause) =>
       setError(cause instanceof Error ? cause.message : "Could not save this change."),

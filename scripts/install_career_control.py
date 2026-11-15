@@ -2,9 +2,7 @@
 import argparse,hashlib,json,os,shutil,subprocess,sys
 from datetime import datetime,timezone
 from pathlib import Path
-from urllib.request import Request,urlopen
-from urllib.error import HTTPError
-from urllib.parse import urlsplit
+from career_http import request,validate_origin
 import yaml
 from dotenv import dotenv_values
 parser=argparse.ArgumentParser()
@@ -20,15 +18,15 @@ job=next((j for j in entries if j.get('id')=='46a628bb9ae9'),None)
 if not job or job.get('enabled') is not False:sys.exit('Expected disabled learning job is not present; no changes made.')
 env={**dotenv_values(home/'.env'),**os.environ};allowed=[v.strip() for v in env.get('TELEGRAM_ALLOWED_USERS','').split(',') if v.strip()]
 if len(allowed)!=1 or not allowed[0].isdigit():sys.exit('A single existing Telegram owner is required; no changes made.')
-origin=env.get('CAREER_OS_BASE_URL','').rstrip('/');url=urlsplit(origin);token=env.get('CAREER_OS_AGENT_TOKEN','')
-if url.scheme!='https' or url.username or url.password or url.path not in ('','/') or url.query or url.fragment or len(token)<32:sys.exit('Secure Career OS connection is not configured; no changes made.')
-api_ready=False
-req=Request(origin+'/api/agent/control',data=b'{}',method='POST',headers={'Authorization':'Bearer '+token,'Accept':'application/json','Content-Type':'application/json','User-Agent':'CareerOS-Control-Install/1.0'})
+origin=env.get('CAREER_OS_BASE_URL','');token=env.get('CAREER_OS_AGENT_TOKEN','')
 try:
- with urlopen(req,timeout=20) as response:pass
-except HTTPError as e:
- try:api_ready=e.code==400 and json.loads(e.read(4096)).get('error')=='invalid_request'
- except Exception:pass
+ validate_origin(origin)
+ if len(token)<32 or any(ord(c)<=32 or ord(c)==127 for c in token):raise ValueError()
+except ValueError:sys.exit('Secure Career OS connection is not configured; no changes made.')
+api_ready=False
+try:
+ code,data=request(origin,'/api/agent/control',method='POST',body={},token=token,timeout=20,user_agent='CareerOS-Control-Install/1.0')
+ api_ready=code==400 and isinstance(data,dict) and data.get('error')=='invalid_request'
 except Exception:pass
 print(json.dumps({'mode':'apply' if args.apply else 'dry_run','control_api_auth_preflight':api_ready,'telegram_toolset_before':config.get('platform_toolsets',{}).get('telegram'),'telegram_toolset_after':['career-os-control'],'approved_provider_preserved':True,'approved_model_preserved':True,'learning_job_stays_disabled':True,'cron_file_will_not_be_written':True}))
 if not args.apply:sys.exit(0)
