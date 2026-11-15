@@ -17,6 +17,7 @@ provides_tools:
   - career_history
   - career_undo
   - career_development_request
+  - career_job_intake
   - career_agent
 provides_hooks:
   - pre_gateway_dispatch

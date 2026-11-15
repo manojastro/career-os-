@@ -70,7 +70,7 @@ class BoundaryTests(unittest.TestCase):
    def register_tool(self,**kw):self.tools.append(kw)
    def register_hook(self,n,fn):self.hooks.append(n)
    def register_system_prompt_section(self,*a,**kw):pass
-  c=Ctx();plugin.register(c);self.assertEqual(len(c.tools),16);self.assertTrue(all(t["toolset"]=="career-os-control" for t in c.tools));self.assertIn("pre_tool_call",c.hooks)
+  c=Ctx();plugin.register(c);self.assertEqual(len(c.tools),17);self.assertTrue(all(t["toolset"]=="career-os-control" for t in c.tools));self.assertIn("pre_tool_call",c.hooks)
  def test_agent_has_strict_discriminated_schema_and_uses_existing_transport(self):
   self.assertIn("agent",plugin.ACTIONS)
   schema=plugin.SCHEMAS["agent"]
@@ -82,6 +82,13 @@ class BoundaryTests(unittest.TestCase):
    plugin.handler("agent",{"operation":"instruction","input":{}})
    self.assertEqual(req.call_args.args[1],"v2")
    self.assertEqual(req.call_args.args[0]["message"],"42")
+ def test_job_intake_sends_only_named_fields_and_never_the_post_text(self):
+  schema=plugin.SCHEMAS["job_intake"]
+  self.assertEqual(set(schema["required"]),{"company","role"});self.assertNotIn("job_description",schema["properties"]);self.assertFalse(schema["additionalProperties"])
+  with patch.object(plugin,"request",return_value={"status":"ready"}) as req,self.context():
+   plugin.ingress(event=self.event())
+   plugin.handler("job_intake",{"company":"Acme","role":"ML Engineer"})
+   self.assertEqual(req.call_args.args[1:],("job_intake",{"company":"Acme","role":"ML Engineer"}))
  def test_tool_definitions_stay_compact_and_clock_comes_from_career_os(self):
   sizes={a:len(json.dumps({"name":"career_"+a,"description":plugin.DESCRIPTIONS[a],"parameters":plugin.SCHEMAS[a]},separators=(",",":"))) for a in plugin.ACTIONS}
   self.assertLess(sizes["agent"],16000);self.assertLess(sum(sizes.values()),23000)
